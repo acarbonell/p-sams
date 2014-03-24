@@ -10,16 +10,21 @@ use constant DEBUG => 1;
 ################################################################################
 # Begin variables
 ################################################################################
-my (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites);
+our (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites);
 getopts('a:s:t:f:ho',\%opt);
-var_check();
+arg_check();
 
 # Constants
-my $conf_file = '/var/www/asrp/sites/amirna/amiRNA_tool.conf';
-my $conf = Config::Tiny->read($conf_file);
-my $db = '/var/www/asrp/sites/amirna/databases/transcripts.sqlite3';
-my $mRNAdb = $conf->{$species}->{'mRNA'};
-my $seed = 15;
+our $db = '/home/nfahlgren/programs/p-sams/psams.sqlite3';
+#our $db = '/data/test/psams.sqlite3';
+our $conf_file = '/home/nfahlgren/programs/p-sams/psams.conf';
+our $conf = Config::Tiny->read($conf_file);
+our $mRNAdb = $conf->{$species}->{'mRNA'};
+our $seed = 15;
+our $targetfinder = '/home/nfahlgren/programs/TargetFinder/targetfinder.pl';
+
+# Connect to the SQLite database
+our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
 
 ################################################################################
 # End variables
@@ -29,32 +34,33 @@ my $seed = 15;
 # Begin main
 ################################################################################
 
-# Build foreground index
+# Get target sequences
 if ($fasta) {
 	$ids = build_fg_index_fasta($fasta);
 } else {
 	$ids = build_fg_index(@accessions);
 }
 
-# Build background index
-if ($opt{'o'}) {
-	($ids, $bg) = build_bg_index($ids, $seed, $db, $species);
-} elsif (!$fasta) {
-	$ids = populate_fg_index($ids, $seed, $db, $species);
-}
+## Build background index
+#if ($opt{'o'}) {
+#	($ids, $bg) = build_bg_index($ids, $seed, $mRNAdb, $species);
+#} elsif (!$fasta) {
+#	$ids = populate_fg_index($ids, $seed, $mRNAdb, $species);
+#}
 
 # Find sites
 if ($opt{'o'}) {
-	@t_sites = get_tsites($ids, $seed, $bg);	
+	@t_sites = get_tsites($ids, $seed, 1);
 } else {
-	@t_sites = get_tsites($ids, $seed);
+	@t_sites = get_tsites($ids, $seed, 0);
 }
 
 # Group sites
 my @gsites = group_tsites($seed, @t_sites);
 
 # Scoring sites
-@gsites = score_sites(scalar(keys(%{$ids})), $seed, @gsites);
+my $target_count = scalar(keys(%{$ids}));
+@gsites = score_sites($target_count, $seed, @gsites);
 
 print STDERR "Sorting and outputing results... \n" if (DEBUG);
 #@gsites = sort {$a->{'distance'} <=> $b->{'distance'} || $a->{'score'} cmp $b->{'score'}} @gsites;
@@ -74,19 +80,44 @@ print STDERR "Sorting and outputing results... \n" if (DEBUG);
 # Add rules for site searches. For example:
      # How many results do we want to return?
 		 # Are there site types we do not want to accept?
+my $result_count = 0;
+my @filtered;
 foreach my $site (@gsites) {
 	my $guide_RNA = design_guide_RNA($site);
 	$site->{'guide'} = $guide_RNA;
-#	# TargetFinder
+	# TargetFinder
+	my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "amiRNA$result_count");
+	if ($off_targets == 0 || $on_targets == $target_count) {
+		$site->{'tf'} = \@json;
+		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
+		$site->{'star'} = $star;
+		$site->{'oligo1'} = $oligo1;
+		$site->{'oligo2'} = $oligo2;
+		push @filtered, $site;
+		$result_count++;
+	}
+	last if ($result_count == 3);
 }
 
-print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
-foreach my $site (@gsites) {
+my $result = 0;
+print "{\n";
+#print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
+foreach my $site (@filtered) {
 	#my @inc = split /;/, $site->{'names'};
 	#next if (scalar(@inc) < scalar(keys(%{$ids})));
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
-	print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
+	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
+	
+	print '  "amiRNA'.$result.'": {'."\n";
+	print '    "miRNA": "'.$site->{'guide'}.'",'."\n";
+	print '    "miRNA*": "'.$site->{'star'}.'",'."\n";
+	print '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	print '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	print '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	print '  },'."\n";
+	$result++;
 }
+print "}\n";
 exit;
 ################################################################################
 # End main
@@ -107,16 +138,16 @@ sub build_fg_index_fasta {
 
 	print STDERR "Building foreground index... " if (DEBUG);
 	my @fasta = split /\n/, $fasta;
-	my $accession = shift @fasta;
-	$accession = substr($accession,1);
-	$ids{$accession} = '';
-	foreach my $line (@fasta) {
-		next if ($line =~ /^\s*$/);
-		if (substr($line,0,1) eq '>') {
-			$accession = substr($line,1);
-			$ids{$accession} = '';
+	my $id;
+	for (my $i = 0; $i < scalar(@fasta); $i++) {
+		next if ($fasta[$i] =~ /^\s*$/);
+		if (substr($fasta[$i],0,1) eq '>') {
+			$id = substr($fasta[$i],1);
+			$ids{$id} = '';
+			#$ids{$id}->{$id} = '';
 		} else {
-			$ids{$accession} .= $line;
+			$ids{$id} .= $fasta[$i];
+			#$ids{$id}->{$id} .= $fasta[$i];
 		}
 	}
 	print STDERR "done\n" if (DEBUG);
@@ -133,10 +164,25 @@ sub build_fg_index {
 	my %ids;
 	
 	print STDERR "Building foreground index... " if (DEBUG);
+	my $sth = $dbh->prepare("SELECT * FROM `$species\_annotation` WHERE `transcript` LIKE ?");
 	foreach my $accession (@accessions) {
 		# If the user entered transcript IDs we need to convert to gene IDs
-		$accession =~ s/\.\d+$//;	
-		$ids{$accession} = 1;
+		$accession =~ s/\.\d+$//;
+		
+		# Get transcript names
+		$sth->execute("$accession%");
+		while (my $result = $sth->fetchrow_hashref) {
+			#$ids{$accession}->{$result->{'transcript'}} = '';	
+			$ids{$result->{'transcript'}} = '';
+			open FASTA, "samtools faidx $mRNAdb $result->{'transcript'} |";
+			while (my $line = <FASTA>) {
+				next if (substr($line,0,1) eq '>');
+				chomp $line;
+				#$ids{$accession}->{$result->{'transcript'}} .= $line;
+				$ids{$result->{'transcript'}} .= $line;
+			}
+			close FASTA;
+		}
 	}
 	print STDERR "done\n" if (DEBUG);
 
@@ -151,39 +197,41 @@ sub build_fg_index {
 sub build_bg_index {
 	my $ids = shift;
 	my $seed = shift;
-	my $db = shift;
+	my $mRNAdb = shift;
 	my $species = shift;
 	
-	# Connect to database, initialize database handler
-	my $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
-	my $sth = $dbh->prepare("SELECT * FROM `$species`");
-	
-	my %bg;
+	my (%bg, %fg);
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
 	
 	print STDERR "Building background index... " if (DEBUG);
-	$sth->execute();
-	while (my $row = $sth->fetchrow_hashref()) {
-		my $accession;
-		if ($row->{'accession'} =~ /^(.+)\.\d+$/) {
-			$accession = $1;
+	open(FASTA, $mRNAdb) or die "Cannot open FASTA file $mRNAdb: $!\n\n";
+	while (!eof(FASTA)) {
+		my $header = <FASTA>;
+		my $seq = <FASTA>;
+		chomp $seq;
+		my ($transcript) = split /\s/, substr($header,1);
+		my $locus;
+		if ($transcript =~ /^(.+)\.\d+$/) {
+			$locus = $1;
 		} else {
-			$accession = $row->{'accession'};
-		}
-		if (exists($ids->{$accession})) {
-			$ids->{$accession} = $row->{'sequence'};
-			next;
-		}
-		my $length = length($row->{'sequence'});
-		for (my $i = 0; $i <= $length - $site_length; $i++) {
-			my $kmer = substr(substr($row->{'sequence'},$i,$site_length),$offset,$seed);
-			$bg{$kmer} = 1;
+			$locus = $transcript;
+		}	
+		if (exists($ids->{$locus})) {
+			# Add transcript sequence to the foreground index
+			$fg{$locus}->{$transcript} = $seq;
+		} else {
+			# Add kmers to the background index
+			my $length = length($seq);
+			for (my $i = 0; $i <= $length - $site_length; $i++) {
+				my $kmer = substr(substr($seq,$i,$site_length),$offset,$seed);
+				$bg{$kmer} = 1;
+			}
 		}
 	}
 	print STDERR "done\n" if (DEBUG);
 	
-	return ($ids, \%bg);
+	return (\%fg, \%bg);
 }
 
 ########################################
@@ -193,30 +241,30 @@ sub build_bg_index {
 sub populate_fg_index {
 	my $ids = shift;
 	my $seed = shift;
-	my $db = shift;
+	my $mRNAdb = shift;
 	my $species = shift;
 	my %tmp = %{$ids};
 	
-	# Connect to database, initialize database handler
-	my $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
-	my $sth = $dbh->prepare("SELECT * FROM `$species` WHERE `accession` LIKE ?");
-	
+	my %fg;
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
 	
 	print STDERR "Building index... " if (DEBUG);
-	while (my ($gene, $seq) = each(%tmp)) {
-		$sth->execute("$gene\%");
-		while (my $row = $sth->fetchrow_hashref()) {
-			my $accession;
-			if ($row->{'accession'} =~ /^(.+)\.\d+$/) {
-				$accession = $1;
-			} else {
-				$accession = $row->{'accession'};
-			}
-			if (exists($ids->{$accession})) {
-				$ids->{$accession} = $row->{'sequence'};
-			}
+	open(FASTA, $mRNAdb) or die "Cannot open FASTA file $mRNAdb: $!\n\n";
+	while (!eof(FASTA)) {
+		my $header = <FASTA>;
+		my $seq = <FASTA>;
+		chomp $seq;
+		my ($transcript) = split /\s/, substr($header,1);
+		my $locus;
+		if ($transcript =~ /^(.+)\.\d+$/) {
+			$locus = $1;
+		} else {
+			$locus = $transcript;
+		}	
+		if (exists($ids->{$locus})) {
+			# Add transcript sequence to the foreground index
+			$fg{$locus}->{$transcript} = $seq;
 		}
 	}
 	print STDERR "done\n" if (DEBUG);
@@ -238,19 +286,55 @@ sub get_tsites {
 	my $offset = $site_length - $seed - 1;
 	
 	print STDERR "Finding sites in foreground transcripts... " if (DEBUG);
-	while (my ($accession, $seq) = each(%{$ids})) {
+	my $sth = $dbh->prepare("SELECT * FROM `$species` WHERE `kmer` = ?");
+	while (my ($transcript, $seq) = each(%{$ids})) {
 		my $length = length($seq);
 		for (my $i = 0; $i <= $length - $site_length; $i++) {
 			my $site = substr($seq,$i,$site_length);
 			my $kmer = substr($site,$offset,$seed);
-			next if ($bg && exists($bg->{$kmer}));
+			if ($bg) {
+				$sth->execute($kmer);
+				my $result = $sth->fetchrow_hashref;
+				my @accessions = split /,/, $result->{'transcripts'};
+				my $is_bg = 0;
+				foreach my $accession (@accessions) {
+					if (!exists($ids->{$accession})) {
+						$is_bg = 1;
+						last;
+					}
+				}
+				next if ($is_bg == 1);
+			}
 			my %hash;
-			$hash{'name'} = $accession;
+			$hash{'name'} = $transcript;
 			$hash{'seq'} = $site;
-			#$hash{'ideal'} = eval_tsite($site);
 			push @t_sites, \%hash;
 		}
 	}
+	
+	## Foreach locus ID
+	#while (my ($locus, $transcripts) = each(%{$ids})) {
+	#	my %locus_set;
+	#	# Foreach transcript sequence
+	#	while (my ($transcript, $seq) = each(%{$transcripts})) {
+	#		my $length = length($seq);
+	#		for (my $i = 0; $i <= $length - $site_length; $i++) {
+	#			my $site = substr($seq,$i,$site_length);
+	#			my $kmer = substr($site,$offset,$seed);
+	#			next if ($bg && exists($bg->{$kmer}));
+	#			if (exists($locus_set{$site})) {
+	#				next;
+	#			} else {
+	#				my %hash;
+	#				$hash{'name'} = $locus;
+	#				$hash{'seq'} = $site;
+	#				#$hash{'ideal'} = eval_tsite($site);
+	#				push @t_sites, \%hash;
+	#				$locus_set{$site} = 1;
+	#			}
+	#		}
+	#	}
+	#}
 	print STDERR "done\n" if (DEBUG);
 	
 	return @t_sites;
@@ -593,6 +677,7 @@ sub design_guide_RNA {
 sub off_target_check {
 	my $site = shift;
 	my $mRNAdb = shift;
+	my $name = shift;
 	
 	# Format of site data structure
 	#$site->{'names'}
@@ -604,22 +689,82 @@ sub off_target_check {
 	#$site->{'p21'}
 	#$site->{'guide'}
 	
-	#my $offCount = 0;
-	#my $gid = $gene_id;
-	#$gid =~ s/\.\d+$//;
-	#my @results;
-	#open TF, "/var/www/asrp/sites/amirna/new/targetfinder.pl -s $site->{'guide'} -d $mRNAdb -q guide |";
-	#while (my $line = <TF>) {
-	#	if ($line =~ /^HIT=/) {
-	#		if ($line !~ /$gid/) {
-	#			$offCount++;
-	#		}
-	#		next;
-	#	}
-	#	push @results, $line;
-	#}
-	#close TF;
-	#return ($offCount, @results);
+	my $offCount = 0;
+	my $onCount = 0;
+	my @json;
+	my $sth = $dbh->prepare("SELECT * FROM `$species\_annotation` WHERE `transcript` = ?");
+	open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $name -p json |";
+	while (my $line = <TF>) {
+		chomp $line;
+		if ($line =~ /hit_accession/) {
+			my ($tag, $transcript) = split /\:\s/, $line;
+			$transcript =~ s/",*//g;
+			
+			$sth->execute($transcript);
+			my $result = $sth->fetchrow_hashref;
+			if ($result->{'description'}) {
+				push @json, '        "hit_description": "'.$result->{'description'}.'",';
+			} else {
+				push @json, '        "hit_description": "unknown",';
+			}
+			
+			if ($site->{'names'} =~ /$transcript/) {
+				$onCount++;
+			} else {
+				$offCount++;
+			}
+		}
+		push @json, $line;
+	}
+	close TF;
+	return ($offCount, $onCount, @json);
+}
+
+########################################
+# Function: oligo_designer
+# Generates cloning oligonucleotide sequences
+########################################
+sub oligo_designer {
+	my $guide = shift;
+	my $type = shift;
+	
+	my $rev = reverse $guide;
+	$rev =~ tr/ACGTacgt/TGCAtgca/;
+	
+	my @temp = split //, $rev;
+	my $c = $temp[10];
+	my $g = $temp[2];
+	my $n = $temp[20];
+	
+	$c =~ tr/[AGCT]/[CTAG]/;
+	
+	my ($star1, $oligo1, $oligo2, $realstar, $string, $bsa1, $bsa2);
+	if ($type eq 'eudicot') {
+		$star1 = substr($rev,0,10).$c.substr($rev,11,10);
+		$oligo1 = $guide.'ATGATGATCACATTCGTTATCTATTTTTT'.$star1;
+		$oligo2 = reverse $oligo1;
+		$oligo2 =~ tr/ACTGacgt/TGACtgca/;
+		$realstar = substr($star1,2,20);
+		$realstar = $realstar.'CA';
+		$string = 'AGTAGAGAAGAATCTGTA'.$oligo1.'CATTGGCTCTTCTTACT';
+		$bsa1 = 'TGTA';
+		$bsa2 = 'AATG';
+	} elsif ($type eq 'monocot') {
+		$star1 = substr($rev,0,10).$c.substr($rev,11,9).'C';
+		$oligo1 = $guide.'ATGATGATCACATTCGTTATCTATTTTTT'.$star1;
+		$oligo2 = reverse $oligo1;
+		$oligo2 =~ tr/ATGCatgc/TACGtacg/;
+		$realstar = substr($star1,2,20);
+		$realstar = $realstar.'CA';
+		$string = 'GGTATGGAACAATCCTTG'.$oligo1.'CATGGTTTGTTCTTACC';
+		$bsa1 = 'CTTG';
+		$bsa2 = 'CATG';
+	} else {
+		print STDERR " Foldback type $type not supported.\n\n";
+		exit 1;
+	}
+
+	return ($realstar, $bsa1.$oligo1, $bsa2.$oligo2);
 }
 
 ########################################
@@ -641,24 +786,22 @@ sub parse_list {
 }
 
 ########################################
-# Function: var_check
+# Function: arg_check
 # Parse Getopt variables
 ########################################
-sub var_check {
+sub arg_check {
 	if ($opt{'h'}) {
-		var_help();
+		arg_error();
 	}
 	if (!$opt{'a'} && !$opt{'f'}) {
-		print STDERR "An input sequence or a gene accession ID were not provided!\n";
-		var_help();
+		arg_error('An input sequence or a gene accession ID were not provided!');
 	}
 	if ($opt{'a'}) {
 		@accessions = parse_list(',', $opt{'a'});
 		if ($opt{'s'}) {
 			$species = $opt{'s'};
 		} else {
-			print STDERR "A species name was not provided!\n";
-			var_help();
+			arg_error('A species name was not provided!');
 		}
 	}
 	if ($opt{'f'}) {
@@ -675,36 +818,33 @@ sub var_check {
 }
 
 ########################################
-# Funtion: var_help
-# Print help menu
+# Funtion: arg_error
+# Process input errors and print help
 ########################################
-sub var_help {
-	print STDERR "\n";
-	print STDERR "This script is the amiRNA and syntasiRNA designer tools main program.\n";
-	print STDERR "Usage: designer_tool.pl\n\n";
-	print STDERR " -t <Foldback type>  [STRING]  DEFAULT = eudicot\n";
-	print STDERR " -f <Fasta sequence> [STRING]  Fasta-formatted sequence. Not used if -a is used.\n\n";
-	print STDERR " -a <Accession>      [STRING]  Gene accession(s). Can be a single accession or comma-separated list. Not used if -f is used.\n\n";
-	print STDERR " -s <Species>        [STRING]  Species. Required if -a is used.\n";
-	print STDERR " -o                  [BOOLEAN] Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.\n\n";
-	print STDERR " -h                  [BOOLEAN] Print this menu.\n\n";
-	exit 1;
+sub arg_error {
+  my $error = shift;
+  if ($error) {
+    print STDERR $error."\n";
+  }
+  my $usage = "
+usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-o] [-h]
+
+Plant Small RNA Maker Suite (P-SAMS).
+  Artificial microRNA and synthetic trans-acting siRNA designer tool.
+
+arguments:
+  -t FOLDBACK           Foldback type [eudicot]. Default = eudicot.
+  -f FASTA              FASTA-formatted sequence. Not used if -a is set.
+  -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
+  -s SPECIES            Species. Required if -a is set.
+  -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
+  -h                    Show this help message and exit.
+
+  ";
+  print STDERR $usage;
+  exit 1;
 }
 
 ################################################################################
 # End functions
 ################################################################################
-
-## Deprecated
-########################################
-# Function: eval_tsite
-# Evaluate target site based on design rules
-########################################
-sub eval_tsite {
-	my $site = shift;
-	if ($site =~ /[AG]$/) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
