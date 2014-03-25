@@ -5,6 +5,8 @@ use Getopt::Std;
 use Config::Tiny;
 use DBI;
 use String::Approx qw(adist);
+use FindBin qw($Bin);
+use HTML::Entities qw(decode_entities encode_entities);
 use constant DEBUG => 1;
 
 ################################################################################
@@ -15,13 +17,13 @@ getopts('a:s:t:f:ho',\%opt);
 arg_check();
 
 # Constants
-our $db = '/home/nfahlgren/programs/p-sams/psams.sqlite3';
-#our $db = '/data/test/psams.sqlite3';
-our $conf_file = '/home/nfahlgren/programs/p-sams/psams.conf';
+our $conf_file = "$Bin/../psams.conf";
+our $targetfinder = "$Bin/targetfinder.pl";
 our $conf = Config::Tiny->read($conf_file);
 our $mRNAdb = $conf->{$species}->{'mRNA'};
+our $db = $conf->{$species}->{'sql'};
 our $seed = 15;
-our $targetfinder = '/home/nfahlgren/programs/TargetFinder/targetfinder.pl';
+our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
@@ -286,7 +288,7 @@ sub get_tsites {
 	my $offset = $site_length - $seed - 1;
 	
 	print STDERR "Finding sites in foreground transcripts... " if (DEBUG);
-	my $sth = $dbh->prepare("SELECT * FROM `$species` WHERE `kmer` = ?");
+	my $sth = $dbh->prepare("SELECT * FROM `kmers` WHERE `kmer` = ?");
 	while (my ($transcript, $seq) = each(%{$ids})) {
 		my $length = length($seq);
 		for (my $i = 0; $i <= $length - $site_length; $i++) {
@@ -692,7 +694,7 @@ sub off_target_check {
 	my $offCount = 0;
 	my $onCount = 0;
 	my @json;
-	my $sth = $dbh->prepare("SELECT * FROM `$species\_annotation` WHERE `transcript` = ?");
+	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` = ?");
 	open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $name -p json |";
 	while (my $line = <TF>) {
 		chomp $line;
@@ -703,6 +705,9 @@ sub off_target_check {
 			$sth->execute($transcript);
 			my $result = $sth->fetchrow_hashref;
 			if ($result->{'description'}) {
+				$result->{'description'} = decode_entities($result->{'description'});
+				$result->{'description'} = encode_entities($result->{'description'});
+				$result->{'description'} =~ s/;//g;
 				push @json, '        "hit_description": "'.$result->{'description'}.'",';
 			} else {
 				push @json, '        "hit_description": "unknown",';
