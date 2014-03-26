@@ -166,7 +166,7 @@ sub build_fg_index {
 	my %ids;
 	
 	print STDERR "Building foreground index... " if (DEBUG);
-	my $sth = $dbh->prepare("SELECT * FROM `$species\_annotation` WHERE `transcript` LIKE ?");
+	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` LIKE ?");
 	foreach my $accession (@accessions) {
 		# If the user entered transcript IDs we need to convert to gene IDs
 		$accession =~ s/\.\d+$//;
