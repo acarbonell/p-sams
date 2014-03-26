@@ -89,7 +89,7 @@ foreach my $site (@gsites) {
 	$site->{'guide'} = $guide_RNA;
 	# TargetFinder
 	my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "amiRNA$result_count");
-	if ($off_targets == 0 || $on_targets == $target_count) {
+	if ($off_targets == 0 && $on_targets == $target_count) {
 		$site->{'tf'} = \@json;
 		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
 		$site->{'star'} = $star;
