@@ -104,21 +104,31 @@ foreach my $site (@gsites) {
 my $result = 0;
 print "{\n";
 #print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
+my @json;
 foreach my $site (@filtered) {
 	#my @inc = split /;/, $site->{'names'};
 	#next if (scalar(@inc) < scalar(keys(%{$ids})));
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
 	
-	print '  "amiRNA'.$result.'": {'."\n";
-	print '    "miRNA": "'.$site->{'guide'}.'",'."\n";
-	print '    "miRNA*": "'.$site->{'star'}.'",'."\n";
-	print '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-	print '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	print '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
-	print '  },'."\n";
+	#print '  "amiRNA'.$result.'": {'."\n";
+	#print '    "miRNA": "'.$site->{'guide'}.'",'."\n";
+	#print '    "miRNA*": "'.$site->{'star'}.'",'."\n";
+	#print '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	#print '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	#print '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	#print '  },'."\n";
+	my $json = '  "amiRNA'.$result.'": {'."\n";
+	$json .=   '    "miRNA": "'.$site->{'guide'}.'",'."\n";
+	$json .=   '    "miRNA*": "'.$site->{'star'}.'",'."\n";
+	$json .=   '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	$json .=   '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	$json .=   '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	$json .=   '  }';
+	push @json, $json;
 	$result++;
 }
+print join(",\n", @json)."\n";
 print "}\n";
 exit;
 ################################################################################
