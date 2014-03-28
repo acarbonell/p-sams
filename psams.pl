@@ -135,7 +135,7 @@ foreach my $site (@opt) {
 	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
 	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
 	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	$json .=   '      "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
 	$json .=   '    }';
 	push @json, $json;
 }
@@ -151,7 +151,7 @@ foreach my $ssite (@subopt) {
 	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
 	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
 	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	$json .=   '      "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
 	$json .=   '    }';
 	push @json, $json;
 	last if ($result == 3);
