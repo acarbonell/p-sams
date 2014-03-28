@@ -144,7 +144,8 @@ print '  },'."\n";
 print '  "suboptimal": {'."\n";
 my $result = 1;
 @json = ();
-foreach my $site (@subopt) {
+foreach my $ssite (@subopt) {
+	my $site = \%{$ssite->{'site'}};
 	my $json = '    "'.$site->{'name'}.'": {'."\n";
 	$json .=   '      "miRNA": "'.$site->{'guide'}.'",'."\n";
 	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
