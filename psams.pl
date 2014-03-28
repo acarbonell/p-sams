@@ -83,52 +83,81 @@ print STDERR "Sorting and outputing results... \n" if (DEBUG);
      # How many results do we want to return?
 		 # Are there site types we do not want to accept?
 my $result_count = 0;
-my @filtered;
+my (@opt, @subopt);
 foreach my $site (@gsites) {
 	my $guide_RNA = design_guide_RNA($site);
 	$site->{'guide'} = $guide_RNA;
+	$site->{'name'} = "amiRNA$result_count";
 	# TargetFinder
 	my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "amiRNA$result_count");
-	if ($off_targets == 0 && $on_targets == $target_count) {
-		$site->{'tf'} = \@json;
-		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
-		$site->{'star'} = $star;
-		$site->{'oligo1'} = $oligo1;
-		$site->{'oligo2'} = $oligo2;
-		push @filtered, $site;
-		$result_count++;
+	my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
+	$site->{'tf'} = \@json;
+	$site->{'star'} = $star;
+	$site->{'oligo1'} = $oligo1;
+	$site->{'oligo2'} = $oligo2;
+	if ($fasta) {
+		if ($off_targets == 0) {
+			push @opt, $site;
+		} else {
+			my %hash;
+			$hash{'off_targets'} = $off_targets;
+			$hash{'site'} = $site;
+			push @subopt, \%hash;
+		}
+	} else {
+		if ($off_targets == 0 && $on_targets == $target_count) {
+			push @opt, $site;
+		} else {
+			my %hash;
+			$hash{'off_targets'} = $off_targets;
+			$hash{'site'} = $site;
+			push @subopt, \%hash;
+		}
 	}
+	$result_count++;
 	last if ($result_count == 3);
 }
 
-my $result = 0;
+@subopt = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @subopt;
+
 print "{\n";
+print '  "optimal": {'."\n";
 #print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
 my @json;
-foreach my $site (@filtered) {
+foreach my $site (@opt) {
 	#my @inc = split /;/, $site->{'names'};
 	#next if (scalar(@inc) < scalar(keys(%{$ids})));
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
 	
-	#print '  "amiRNA'.$result.'": {'."\n";
-	#print '    "miRNA": "'.$site->{'guide'}.'",'."\n";
-	#print '    "miRNA*": "'.$site->{'star'}.'",'."\n";
-	#print '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-	#print '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	#print '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
-	#print '  },'."\n";
-	my $json = '  "amiRNA'.$result.'": {'."\n";
-	$json .=   '    "miRNA": "'.$site->{'guide'}.'",'."\n";
-	$json .=   '    "miRNA*": "'.$site->{'star'}.'",'."\n";
-	$json .=   '    "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-	$json .=   '    "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	$json .=   '    "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
-	$json .=   '  }';
+	my $json = '    "'.$site->{'name'}.'": {'."\n";
+	$json .=   '      "miRNA": "'.$site->{'guide'}.'",'."\n";
+	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
+	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	$json .=   '      "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	$json .=   '    }';
 	push @json, $json;
+}
+print join(",\n", @json)."\n";
+print '  },'."\n";
+print '  "suboptimal": {'."\n";
+my $result = 1;
+@json = ();
+foreach my $site (@subopt) {
+	my $json = '    "'.$site->{'name'}.'": {'."\n";
+	$json .=   '      "miRNA": "'.$site->{'guide'}.'",'."\n";
+	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
+	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	$json .=   '      "TargetFinder": '.join("\n    ", @{$site->{'tf'}})."\n";
+	$json .=   '    }';
+	push @json, $json;
+	last if ($result == 3);
 	$result++;
 }
 print join(",\n", @json)."\n";
+print '  }'."\n";
 print "}\n";
 exit;
 ################################################################################
