@@ -78,6 +78,8 @@ print STDERR "Sorting and outputing results... \n" if (DEBUG);
 	$a->{'p1'} <=> $b->{'p1'}
 	} @gsites;
 
+print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
+
 # Design and test guide RNAs
 # Add rules for site searches. For example:
      # How many results do we want to return?
