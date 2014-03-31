@@ -741,7 +741,8 @@ sub off_target_check {
 	open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $name -p json |";
 	while (my $line = <TF>) {
 		chomp $line;
-		if ($line =~ /hit_accession/) {
+		push @json, $line;
+		if ($line =~ /Target accession/) {
 			my ($tag, $transcript) = split /\:\s/, $line;
 			$transcript =~ s/",*//g;
 			
@@ -751,9 +752,9 @@ sub off_target_check {
 				$result->{'description'} = decode_entities($result->{'description'});
 				$result->{'description'} = encode_entities($result->{'description'});
 				$result->{'description'} =~ s/;//g;
-				push @json, '        "hit_description": "'.$result->{'description'}.'",';
+				push @json, '        "Target description": "'.$result->{'description'}.'",';
 			} else {
-				push @json, '        "hit_description": "unknown",';
+				push @json, '        "Target description": "unknown",';
 			}
 			
 			if ($site->{'names'} =~ /$transcript/) {
@@ -762,7 +763,6 @@ sub off_target_check {
 				$offCount++;
 			}
 		}
-		push @json, $line;
 	}
 	close TF;
 	return ($offCount, $onCount, @json);
