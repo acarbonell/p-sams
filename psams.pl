@@ -100,6 +100,7 @@ foreach my $site (@gsites) {
 	if ($fasta) {
 		if ($off_targets == 0) {
 			push @opt, $site;
+			$result_count++;
 		} else {
 			my %hash;
 			$hash{'off_targets'} = $off_targets;
@@ -109,6 +110,7 @@ foreach my $site (@gsites) {
 	} else {
 		if ($off_targets == 0 && $on_targets == $target_count) {
 			push @opt, $site;
+			$result_count++;
 		} else {
 			my %hash;
 			$hash{'off_targets'} = $off_targets;
@@ -116,7 +118,6 @@ foreach my $site (@gsites) {
 			push @subopt, \%hash;
 		}
 	}
-	$result_count++;
 	last if ($result_count == 3);
 }
 
