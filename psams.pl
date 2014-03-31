@@ -120,6 +120,7 @@ foreach my $site (@gsites) {
 
 @subopt = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @subopt;
 
+$result_count = 1;
 print "{\n";
 print '  "optimal": {'."\n";
 #print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
@@ -130,14 +131,15 @@ foreach my $site (@opt) {
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
 	
-	my $json = '    "'.$site->{'name'}.'": {'."\n";
-	$json .=   '      "miRNA": "'.$site->{'guide'}.'",'."\n";
-	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
+	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
+	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
+	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
 	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
 	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
 	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
 	$json .=   '    }';
 	push @json, $json;
+	$result_count++;
 }
 print join(",\n", @json)."\n";
 print '  },'."\n";
@@ -146,9 +148,9 @@ my $result = 1;
 @json = ();
 foreach my $ssite (@subopt) {
 	my $site = \%{$ssite->{'site'}};
-	my $json = '    "'.$site->{'name'}.'": {'."\n";
-	$json .=   '      "miRNA": "'.$site->{'guide'}.'",'."\n";
-	$json .=   '      "miRNA*": "'.$site->{'star'}.'",'."\n";
+	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
+	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
+	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
 	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
 	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
 	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
@@ -156,6 +158,7 @@ foreach my $ssite (@subopt) {
 	push @json, $json;
 	last if ($result == 3);
 	$result++;
+	$result_count++;
 }
 print join(",\n", @json)."\n";
 print '  }'."\n";
