@@ -12,8 +12,8 @@ use constant DEBUG => 1;
 ################################################################################
 # Begin variables
 ################################################################################
-our (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites);
-getopts('a:s:t:f:ho',\%opt);
+our (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites, $construct);
+getopts('a:s:t:f:c:ho',\%opt);
 arg_check();
 
 # Constants
@@ -35,6 +35,27 @@ our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
 ################################################################################
 # Begin main
 ################################################################################
+
+if ($construct eq 'amirna') {
+	#pipeline();
+} elsif ($construct eq 'syntasirna') {
+	
+} else {
+	arg_error("Construct type $construct is not supported!");
+}
+
+#sub pipeline {
+#	
+#	
+#	
+#	  -t FOLDBACK           Foldback type [eudicot]. Default = eudicot.
+#  -f FASTA              FASTA-formatted sequence. Not used if -a is set.
+#  -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
+#  -s SPECIES            Species. Required if -a is set.
+#	-c CONSTRUCT          Construct type (amirna, syntasirna). Default = amirna.
+#  -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
+#  -h                    Show this help message and exit.
+#}
 
 # Get target sequences
 if ($fasta) {
@@ -134,6 +155,8 @@ foreach my $site (@opt) {
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
 	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
 	
+	@{$site->{'tf'}}[1] =~ s/amiRNA\d+/amiRNA Result $result_count/;
+	
 	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
 	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
 	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
@@ -151,6 +174,9 @@ my $result = 1;
 @json = ();
 foreach my $ssite (@subopt) {
 	my $site = \%{$ssite->{'site'}};
+	
+	@{$site->{'tf'}}[1] =~ s/amiRNA\d+/amiRNA Result $result_count/;
+	
 	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
 	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
 	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
@@ -866,6 +892,12 @@ sub arg_check {
 	} else {
 		$fb = 'eudicot';
 	}
+	if ($opt{'c'}) {
+		$construct = $opt{'c'};
+	} else {
+		$contstruct = 'amirna';
+	}
+	
 }
 
 ########################################
@@ -878,7 +910,7 @@ sub arg_error {
     print STDERR $error."\n";
   }
   my $usage = "
-usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-o] [-h]
+usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-c CONSTRUCT] [-o] [-h]
 
 Plant Small RNA Maker Suite (P-SAMS).
   Artificial microRNA and synthetic trans-acting siRNA designer tool.
@@ -888,6 +920,7 @@ arguments:
   -f FASTA              FASTA-formatted sequence. Not used if -a is set.
   -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
   -s SPECIES            Species. Required if -a is set.
+	-c CONSTRUCT          Construct type (amirna, syntasirna). Default = amirna.
   -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
   -h                    Show this help message and exit.
 
