@@ -895,7 +895,7 @@ sub arg_check {
 	if ($opt{'c'}) {
 		$construct = $opt{'c'};
 	} else {
-		$contstruct = 'amirna';
+		$construct = 'amirna';
 	}
 	
 }
