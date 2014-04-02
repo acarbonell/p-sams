@@ -258,89 +258,6 @@ sub build_fg_index {
 }
 
 ########################################
-# Function: build_bg_index
-# Builds an index of kmers from all non-target transcripts
-########################################
-
-sub build_bg_index {
-	my $ids = shift;
-	my $seed = shift;
-	my $mRNAdb = shift;
-	my $species = shift;
-	
-	my (%bg, %fg);
-	my $site_length = 21;
-	my $offset = $site_length - $seed - 1;
-	
-	print STDERR "Building background index... " if (DEBUG);
-	open(FASTA, $mRNAdb) or die "Cannot open FASTA file $mRNAdb: $!\n\n";
-	while (!eof(FASTA)) {
-		my $header = <FASTA>;
-		my $seq = <FASTA>;
-		chomp $seq;
-		my ($transcript) = split /\s/, substr($header,1);
-		my $locus;
-		if ($transcript =~ /^(.+)\.\d+$/) {
-			$locus = $1;
-		} else {
-			$locus = $transcript;
-		}	
-		if (exists($ids->{$locus})) {
-			# Add transcript sequence to the foreground index
-			$fg{$locus}->{$transcript} = $seq;
-		} else {
-			# Add kmers to the background index
-			my $length = length($seq);
-			for (my $i = 0; $i <= $length - $site_length; $i++) {
-				my $kmer = substr(substr($seq,$i,$site_length),$offset,$seed);
-				$bg{$kmer} = 1;
-			}
-		}
-	}
-	print STDERR "done\n" if (DEBUG);
-	
-	return (\%fg, \%bg);
-}
-
-########################################
-# Function: populate_fg_index
-# Builds a foreground index without background subtraction
-########################################
-sub populate_fg_index {
-	my $ids = shift;
-	my $seed = shift;
-	my $mRNAdb = shift;
-	my $species = shift;
-	my %tmp = %{$ids};
-	
-	my %fg;
-	my $site_length = 21;
-	my $offset = $site_length - $seed - 1;
-	
-	print STDERR "Building index... " if (DEBUG);
-	open(FASTA, $mRNAdb) or die "Cannot open FASTA file $mRNAdb: $!\n\n";
-	while (!eof(FASTA)) {
-		my $header = <FASTA>;
-		my $seq = <FASTA>;
-		chomp $seq;
-		my ($transcript) = split /\s/, substr($header,1);
-		my $locus;
-		if ($transcript =~ /^(.+)\.\d+$/) {
-			$locus = $1;
-		} else {
-			$locus = $transcript;
-		}	
-		if (exists($ids->{$locus})) {
-			# Add transcript sequence to the foreground index
-			$fg{$locus}->{$transcript} = $seq;
-		}
-	}
-	print STDERR "done\n" if (DEBUG);
-	
-	return $ids;
-}
-
-########################################
 # Function: get_tsites
 # Identify all putative target sites
 ########################################
@@ -381,31 +298,6 @@ sub get_tsites {
 			push @t_sites, \%hash;
 		}
 	}
-	
-	## Foreach locus ID
-	#while (my ($locus, $transcripts) = each(%{$ids})) {
-	#	my %locus_set;
-	#	# Foreach transcript sequence
-	#	while (my ($transcript, $seq) = each(%{$transcripts})) {
-	#		my $length = length($seq);
-	#		for (my $i = 0; $i <= $length - $site_length; $i++) {
-	#			my $site = substr($seq,$i,$site_length);
-	#			my $kmer = substr($site,$offset,$seed);
-	#			next if ($bg && exists($bg->{$kmer}));
-	#			if (exists($locus_set{$site})) {
-	#				next;
-	#			} else {
-	#				my %hash;
-	#				$hash{'name'} = $locus;
-	#				$hash{'seq'} = $site;
-	#				#$hash{'ideal'} = eval_tsite($site);
-	#				push @t_sites, \%hash;
-	#				$locus_set{$site} = 1;
-	#			}
-	#		}
-	#	}
-	#}
-	#print STDERR "done\n" if (DEBUG);
 	
 	return @t_sites;
 }
