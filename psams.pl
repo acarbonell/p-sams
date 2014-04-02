@@ -64,13 +64,6 @@ if ($fasta) {
 	$ids = build_fg_index(@accessions);
 }
 
-## Build background index
-#if ($opt{'o'}) {
-#	($ids, $bg) = build_bg_index($ids, $seed, $mRNAdb, $species);
-#} elsif (!$fasta) {
-#	$ids = populate_fg_index($ids, $seed, $mRNAdb, $species);
-#}
-
 # Find sites
 if ($opt{'o'}) {
 	@t_sites = get_tsites($ids, $seed, 1);
@@ -224,6 +217,7 @@ sub build_fg_index_fasta {
 			#$ids{$id}->{$id} .= $fasta[$i];
 		}
 	}
+	print STDERR scalar(keys(%ids))." sequences loaded..." if (DEBUG);
 	print STDERR "done\n" if (DEBUG);
 	
 	return \%ids;
@@ -920,7 +914,7 @@ arguments:
   -f FASTA              FASTA-formatted sequence. Not used if -a is set.
   -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
   -s SPECIES            Species. Required if -a is set.
-	-c CONSTRUCT          Construct type (amirna, syntasirna). Default = amirna.
+  -c CONSTRUCT          Construct type (amirna, syntasirna). Default = amirna.
   -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
   -h                    Show this help message and exit.
 
