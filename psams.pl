@@ -353,10 +353,11 @@ sub get_tsites {
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
 	
-	print STDERR "Finding sites in foreground transcripts... " if (DEBUG);
+	print STDERR "Finding sites in foreground transcripts... \n" if (DEBUG);
 	my $sth = $dbh->prepare("SELECT * FROM `kmers` WHERE `kmer` = ?");
 	while (my ($transcript, $seq) = each(%{$ids})) {
 		my $length = length($seq);
+		print STDERR "  Transcript $transcript is $length nt long\n" if (DEBUG);
 		for (my $i = 0; $i <= $length - $site_length; $i++) {
 			my $site = substr($seq,$i,$site_length);
 			my $kmer = substr($site,$offset,$seed);
@@ -403,7 +404,7 @@ sub get_tsites {
 	#		}
 	#	}
 	#}
-	print STDERR "done\n" if (DEBUG);
+	#print STDERR "done\n" if (DEBUG);
 	
 	return @t_sites;
 }
