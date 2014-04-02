@@ -362,14 +362,15 @@ sub get_tsites {
 			my $site = substr($seq,$i,$site_length);
 			my $kmer = substr($site,$offset,$seed);
 			if ($bg) {
-				$sth->execute($kmer);
-				my $result = $sth->fetchrow_hashref;
-				my @accessions = split /,/, $result->{'transcripts'};
 				my $is_bg = 0;
-				foreach my $accession (@accessions) {
-					if (!exists($ids->{$accession})) {
-						$is_bg = 1;
-						last;
+				$sth->execute($kmer);
+				while (my $result = $sth->fetchrow_hashref) {
+					my @accessions = split /,/, $result->{'transcripts'};
+					foreach my $accession (@accessions) {
+						if (!exists($ids->{$accession})) {
+							$is_bg = 1;
+							last;
+						}
 					}
 				}
 				next if ($is_bg == 1);
