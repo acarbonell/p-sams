@@ -404,7 +404,7 @@ sub get_tsites {
 				my $is_bg = 0;
 				if (exists($discard{$kmer})) {
 					$is_bg = 1;
-					last;
+					next;
 				} elsif (!exists($found{$kmer})) {
 					$sth->execute($kmer);
 					while (my $result = $sth->fetchrow_hashref) {
@@ -414,10 +414,9 @@ sub get_tsites {
 								$is_bg = 1;
 								$discard{$kmer} = 1;
 								last;
-							} else {
-								$found{$kmer} = 1;
 							}
 						}
+						$found{$kmer} = 1;
 					}
 					next if ($is_bg == 1);
 				}
