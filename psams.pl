@@ -392,7 +392,7 @@ sub get_tsites {
 	my $offset = $site_length - $seed - 1;
 	
 	print STDERR "Finding sites in foreground transcripts... \n" if (DEBUG);
-	my %discard;
+	my (%discard, %found);
 	my $sth = $dbh->prepare("SELECT * FROM `kmers` WHERE `kmer` = ?");
 	while (my ($transcript, $seq) = each(%{$ids})) {
 		my $length = length($seq);
@@ -405,19 +405,22 @@ sub get_tsites {
 				if (exists($discard{$kmer})) {
 					$is_bg = 1;
 					last;
-				}
-				$sth->execute($kmer);
-				while (my $result = $sth->fetchrow_hashref) {
-					my @accessions = split /,/, $result->{'transcripts'};
-					foreach my $accession (@accessions) {
-						if (!exists($ids->{$accession})) {
-							$is_bg = 1;
-							$discard{$kmer} = 1;
-							last;
+				} elsif (!exists($found{$kmer})) {
+					$sth->execute($kmer);
+					while (my $result = $sth->fetchrow_hashref) {
+						my @accessions = split /,/, $result->{'transcripts'};
+						foreach my $accession (@accessions) {
+							if (!exists($ids->{$accession})) {
+								$is_bg = 1;
+								$discard{$kmer} = 1;
+								last;
+							} else {
+								$found{$kmer} = 1;
+							}
 						}
 					}
+					next if ($is_bg == 1);
 				}
-				next if ($is_bg == 1);
 			}
 			my %hash;
 			$hash{'name'} = $transcript;
