@@ -44,7 +44,7 @@ if ($construct eq 'amiRNA') {
 	if ($fasta) {
 		$ids = build_fg_index_fasta($fasta);
 	} else {
-		my @accessions = parse_list($accession_list);
+		my @accessions = parse_list(',', $accession_list);
 		$ids = build_fg_index(@accessions);
 	}
 	
@@ -62,7 +62,7 @@ if ($construct eq 'amiRNA') {
 	} else {
 		my @groups = split /;/, $accession_list;
 		foreach my $group (@groups) {
-			my @accessions = parse_list($group);
+			my @accessions = parse_list(',', $group);
 			my $ids = build_fg_index(@accessions);
 			pipeline($ids, $seed, $bg, $fb, $construct);
 		}
