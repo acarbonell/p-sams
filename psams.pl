@@ -13,7 +13,7 @@ use constant DEBUG => 1;
 # Begin variables
 ################################################################################
 #my (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites, $construct);
-my (%opt, @accessions, $fasta, $species, $fb, $construct);
+my (%opt, $accession_list, $fasta, $species, $fb, $construct);
 getopts('a:s:t:f:c:ho',\%opt);
 arg_check();
 
@@ -44,6 +44,7 @@ if ($construct eq 'amiRNA') {
 	if ($fasta) {
 		$ids = build_fg_index_fasta($fasta);
 	} else {
+		my @accessions = parse_list($accession_list);
 		$ids = build_fg_index(@accessions);
 	}
 	
@@ -51,141 +52,25 @@ if ($construct eq 'amiRNA') {
 	pipeline($ids, $seed, $bg, $fb, $construct);
 	
 } elsif ($construct eq 'syntasiRNA') {
-	
+	my $bg = ($opt{'o'}) ? 1 : 0;
+	if ($fasta) {
+		my @fasta = split /;/, $fasta;
+		foreach my $group (@fasta) {
+			my $ids = build_fg_index_fasta($group);
+			pipeline($ids, $seed, $bg, $fb, $construct);
+		}
+	} else {
+		my @groups = split /;/, $accession_list;
+		foreach my $group (@groups) {
+			my @accessions = parse_list($group);
+			my $ids = build_fg_index(@accessions);
+			pipeline($ids, $seed, $bg, $fb, $construct);
+		}
+	}
 } else {
 	arg_error("Construct type $construct is not supported!");
 }
 
-
-
-## Get target sequences
-#if ($fasta) {
-#	$ids = build_fg_index_fasta($fasta);
-#} else {
-#	$ids = build_fg_index(@accessions);
-#}
-
-# Find sites
-#if ($opt{'o'}) {
-#	@t_sites = get_tsites($ids, $seed, 1);
-#} else {
-#	@t_sites = get_tsites($ids, $seed, 0);
-#}
-
-# Group sites
-#my @gsites = group_tsites($seed, @t_sites);
-
-# Scoring sites
-#my $target_count = scalar(keys(%{$ids}));
-#@gsites = score_sites($target_count, $seed, @gsites);
-
-#print STDERR "Sorting and outputing results... \n" if (DEBUG);
-##@gsites = sort {$a->{'distance'} <=> $b->{'distance'} || $a->{'score'} cmp $b->{'score'}} @gsites;
-#@gsites = sort {
-#	$a->{'other_mm'} <=> $b->{'other_mm'}
-#		||
-#	$a->{'p21'} <=> $b->{'p21'}
-#		||
-#	$a->{'p3'} <=> $b->{'p3'}
-#		||
-#	$a->{'p2'} <=> $b->{'p2'}
-#		||
-#	$a->{'p1'} <=> $b->{'p1'}
-#	} @gsites;
-
-#print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
-
-# Design and test guide RNAs
-# Add rules for site searches. For example:
-     # How many results do we want to return?
-		 # Are there site types we do not want to accept?
-#my $result_count = 0;
-#my (@opt, @subopt);
-#foreach my $site (@gsites) {
-#	my $guide_RNA = design_guide_RNA($site);
-#	$site->{'guide'} = $guide_RNA;
-#	$site->{'name'} = "amiRNA$result_count";
-#	# TargetFinder
-#	my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "amiRNA$result_count");
-#	my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
-#	$site->{'tf'} = \@json;
-#	$site->{'star'} = $star;
-#	$site->{'oligo1'} = $oligo1;
-#	$site->{'oligo2'} = $oligo2;
-#	if ($fasta) {
-#		if ($off_targets == 0) {
-#			push @opt, $site;
-#			$result_count++;
-#		} else {
-#			my %hash;
-#			$hash{'off_targets'} = $off_targets;
-#			$hash{'site'} = $site;
-#			push @subopt, \%hash;
-#		}
-#	} else {
-#		if ($off_targets == 0 && $on_targets == $target_count) {
-#			push @opt, $site;
-#			$result_count++;
-#		} else {
-#			my %hash;
-#			$hash{'off_targets'} = $off_targets;
-#			$hash{'site'} = $site;
-#			push @subopt, \%hash;
-#		}
-#	}
-#	last if ($result_count == 3);
-#}
-#
-#@subopt = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @subopt;
-#
-#$result_count = 1;
-#print "{\n";
-#print '  "optimal": {'."\n";
-##print "Accessions\tSites\tAdjusted distance\tp3\tp2\tp1\tp21\n";
-#my @json;
-#foreach my $site (@opt) {
-#	#my @inc = split /;/, $site->{'names'};
-#	#next if (scalar(@inc) < scalar(keys(%{$ids})));
-#	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'distance'}."\t".$site->{'score'}."\n";
-#	#print $site->{'names'}."\t".$site->{'seqs'}."\t".$site->{'other_mm'}."\t".$site->{'p3'}."\t".$site->{'p2'}."\t".$site->{'p1'}."\t".$site->{'p21'}."\t".$site->{'guide'}."\n";
-#	
-#	@{$site->{'tf'}}[1] =~ s/amiRNA\d+/amiRNA Result $result_count/;
-#	
-#	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
-#	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
-#	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
-#	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-#	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-#	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-#	$json .=   '    }';
-#	push @json, $json;
-#	$result_count++;
-#}
-#print join(",\n", @json)."\n";
-#print '  },'."\n";
-#print '  "suboptimal": {'."\n";
-#my $result = 1;
-#@json = ();
-#foreach my $ssite (@subopt) {
-#	my $site = \%{$ssite->{'site'}};
-#	
-#	@{$site->{'tf'}}[1] =~ s/amiRNA\d+/amiRNA Result $result_count/;
-#	
-#	my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
-#	$json .=   '      "amiRNA": "'.$site->{'guide'}.'",'."\n";
-#	$json .=   '      "amiRNA*": "'.$site->{'star'}.'",'."\n";
-#	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-#	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-#	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-#	$json .=   '    }';
-#	push @json, $json;
-#	last if ($result == 3);
-#	$result++;
-#	$result_count++;
-#}
-#print join(",\n", @json)."\n";
-#print '  }'."\n";
-#print "}\n";
 exit;
 ################################################################################
 # End main
@@ -891,7 +776,8 @@ sub arg_check {
 		arg_error('An input sequence or a gene accession ID were not provided!');
 	}
 	if ($opt{'a'}) {
-		@accessions = parse_list(',', $opt{'a'});
+		$accession_list = $opt{'a'};
+		#@accessions = parse_list(',', $opt{'a'});
 		if ($opt{'s'}) {
 			$species = $opt{'s'};
 		} else {
