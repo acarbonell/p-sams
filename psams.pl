@@ -134,7 +134,7 @@ sub pipeline {
 			my @names = split /;/, $site->{'names'};
 			for (my $i = 0; $i < scalar(@seqs); $i++) {
 				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $guide_RNA);
-				push @insert, join("\n", @hit);
+				push @insert, join("\n      ", @hit);
 			}
 			if ($off_targets == 0) {
 				@json = ();
@@ -864,6 +864,7 @@ sub base_pair {
 		}
 	}
 	
+	$homology_string = reverse $homology_string;
 	$homology_string =~ s/ /\&nbsp/g;
 	
 	my @hit;
