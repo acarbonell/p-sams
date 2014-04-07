@@ -183,7 +183,7 @@ sub pipeline {
 	
 	my @json;
 	foreach my $site (@opt) {
-		@{$site->{'tf'}}[1] =~ s/amiRNA\d+/amiRNA Result $result_count/;
+		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
 	
 		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
 		$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
