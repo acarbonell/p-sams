@@ -124,21 +124,42 @@ sub pipeline {
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
 		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
-		$site->{'tf'} = \@json;
 		$site->{'star'} = $star;
 		$site->{'oligo1'} = $oligo1;
 		$site->{'oligo2'} = $oligo2;
 		if ($fasta) {
+			# Add missing FASTA targets
+			my @insert;
+			my @seqs = split /;/, $site->{'seqs'};
+			my @names = split /;/, $site->{'names'};
+			for (my $i = 0; $i < scalar(@seqs); $i++) {
+				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $guide_RNA);
+				push @insert, join("\n", @hit);
+			}
 			if ($off_targets == 0) {
+				@json = ();
+				push @json, '{';
+				push @json, '  "'.$construct.$result_count.'": {';
+				push @json, '    "hits": [';
+				push @json, join(",\n", @insert);
+				push @json, '    ]';
+				push @json, '  }';
+				push @json, '}';
+				$site->{'tf'} = \@json;
 				push @opt, $site;
 				$result_count++;
 			} else {
+				my @new_json = $json[0..2];
+				push @new_json, join(",\n", @insert).',';
+				push @new_json, $json[3..scalar(@json) - 1];
+				$site->{'tf'} = \@new_json;
 				my %hash;
 				$hash{'off_targets'} = $off_targets;
 				$hash{'site'} = $site;
 				push @subopt, \%hash;
 			}
 		} else {
+			$site->{'tf'} = \@json;
 			if ($off_targets == 0 && $on_targets == $target_count) {
 				push @opt, $site;
 				$result_count++;
@@ -744,6 +765,120 @@ sub oligo_designer {
 	}
 
 	return ($realstar, $bsa1.$oligo1, $bsa2.$oligo2);
+}
+
+########################################
+# Function: parse_list
+# Parses deliminated lists into an array
+########################################
+sub base_pair {
+	my $target = shift;
+	my $name = shift;
+	my $transcript = shift;
+	my $guide = shift;
+	
+	my $start = index($transcript,$target);
+	if ($start == -1) {
+		print STDERR "Warning: site $target not found in transcript $name!\n\n";
+		return;
+	}
+	my $end = $start + length($target) - 1;
+	
+	my %bp;
+	$bp{"AU"} = 0;
+	$bp{"UA"} = 0;
+	$bp{"GC"} = 0;
+	$bp{"CG"} = 0;
+	$bp{"GU"} = 0.5;
+	$bp{"UG"} = 0.5;
+	$bp{"AC"} = 1;
+	$bp{"CA"} = 1;
+	$bp{"AG"} = 1;
+	$bp{"GA"} = 1;
+	$bp{"UC"} = 1;
+	$bp{"CU"} = 1;
+	$bp{"A-"} = 1;
+	$bp{"U-"} = 1;
+	$bp{"G-"} = 1;
+	$bp{"C-"} = 1;
+	$bp{"-A"} = 1;
+	$bp{"-U"} = 1;
+	$bp{"-G"} = 1;
+	$bp{"-C"} = 1;
+	$bp{"AA"} = 1;
+	$bp{"UU"} = 1;
+	$bp{"CC"} = 1;
+	$bp{"GG"} = 1;
+	my $homology_string;
+	my $cycle = 0;
+	my $score = 0;
+	my $mismatch = 0;
+	my $gu = 0;
+	
+	$target =~ s/T/U/g;
+	$guide =~ s/T/U/g;
+	$guide = reverse $guide;
+	
+	my @guide_nts = split //, $guide;
+	my @target_nts = split //, $target;
+	for (my $i = 1; $i <= length($guide); $i++) {
+		$cycle++;
+		my $guide_base = pop @guide_nts;
+		my $target_base = pop @target_nts;
+		if ($cycle == 1) {
+			my $position = $bp{"$guide_base$target_base"};
+			if ($position == 1) {
+				$mismatch++;
+				$homology_string .= ' ';
+			} elsif ($position == 0.5) {
+				$gu++;
+				$homology_string .= '.';
+			} else {
+				$homology_string .= ':';
+			}
+			$score = $position;
+		} elsif ($cycle > 13) {
+			my $position = $bp{"$guide_base$target_base"};
+			if ($position == 1) {
+				$mismatch++;
+				$homology_string .= ' ';
+			} elsif ($position == 0.5) {
+				$gu++;
+				$homology_string .= '.';
+			} else {
+				$homology_string .= ':';
+			}
+			$score += $position;
+		} else {
+			my $position = ($bp{"$guide_base$target_base"}*2);
+			if ($position == 2) {
+				$mismatch++;
+				$homology_string .= ' ';
+			} elsif ($position == 1) {
+				$gu++;
+				$homology_string .= '.';
+			} else {
+				$homology_string .= ':';
+			}
+			$score += $position;
+		}
+	}
+	
+	$homology_string =~ s/ /\&nbsp/g;
+	
+	my @hit;
+	push @hit, '      {';
+	push @hit, '        "Target accession": "'.$name.'",';
+	push @hit, '        "Target description": "unknown",';
+	push @hit, '        "Score": "'.$score.'",';
+	push @hit, '        "Coordinates": "'.$start.'-'.$end.'",';
+	push @hit, '        "Strand": "+",';
+	push @hit, '        "Target sequence": "'.$target.'",';
+	push @hit, '        "Base pairing": "'.$homology_string.'",';
+	push @hit, '        "amiRNA sequence": '.$guide.'"';
+	push @hit, '      }';
+	
+	return @hit;
 }
 
 ########################################
