@@ -151,7 +151,9 @@ sub pipeline {
 			} else {
 				my @new_json = $json[0..2];
 				push @new_json, join(",\n", @insert).',';
-				push @new_json, $json[3..scalar(@json) - 1];
+				for (my $i = 3; $i < scalar(@json); $i++) {
+					push @new_json, $json[$i];	
+				}
 				$site->{'tf'} = \@new_json;
 				my %hash;
 				$hash{'off_targets'} = $off_targets;
