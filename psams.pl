@@ -124,7 +124,6 @@ sub pipeline {
 		$site->{'name'} = "$construct$result_count";
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
-		print STDERR Dumper(@json);
 		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
 		$site->{'star'} = $star;
 		$site->{'oligo1'} = $oligo1;
@@ -151,7 +150,10 @@ sub pipeline {
 				push @opt, $site;
 				$result_count++;
 			} else {
-				my @new_json = $json[0..2];
+				my @new_json;
+				for (my $i = 0; $i <= 2; $i++) {
+					push @new_json, $json[$i];
+				}
 				push @new_json, join(",\n", @insert).',';
 				for (my $i = 3; $i < scalar(@json); $i++) {
 					push @new_json, $json[$i];	
