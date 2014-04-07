@@ -878,7 +878,7 @@ sub base_pair {
 	push @hit, '        "Strand": "+",';
 	push @hit, '        "Target sequence": "'.$target.'",';
 	push @hit, '        "Base pairing": "'.$homology_string.'",';
-	push @hit, '        "amiRNA sequence": '.$guide.'"';
+	push @hit, '        "amiRNA sequence": "'.$guide.'"';
 	push @hit, '      }';
 	
 	return @hit;
