@@ -8,6 +8,7 @@ use String::Approx qw(adist);
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
 use constant DEBUG => 1;
+use Data::Dumper;
 
 ################################################################################
 # Begin variables
@@ -123,6 +124,7 @@ sub pipeline {
 		$site->{'name'} = "$construct$result_count";
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
+		print STDERR Dumper(@json);
 		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
 		$site->{'star'} = $star;
 		$site->{'oligo1'} = $oligo1;
