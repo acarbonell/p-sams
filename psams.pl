@@ -109,7 +109,7 @@ sub pipeline {
 		$site->{'name'} = "$construct$result_count";
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
-		my ($star, $oligo1, $oligo2) = oligo_designer($guide_RNA, $fb);
+		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide_RNA'}, $fb);
 		$site->{'star'} = $star;
 		$site->{'oligo1'} = $oligo1;
 		$site->{'oligo2'} = $oligo2;
