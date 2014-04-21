@@ -4,7 +4,7 @@ use warnings;
 use Getopt::Std;
 use Config::Tiny;
 use DBI;
-use String::Approx qw(adist);
+#use String::Approx qw(adist);
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
 use constant DEBUG => 1;
