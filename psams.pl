@@ -26,6 +26,7 @@ our $mRNAdb = $conf->{$species}->{'mRNA'};
 our $db = $conf->{$species}->{'sql'};
 our $seed = 15;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
+our $system = 'pbs';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
@@ -102,25 +103,9 @@ sub pipeline {
 	my $target_count = scalar(keys(%{$ids}));
 	@gsites = score_sites($target_count, $seed, @gsites);
 
-	print STDERR "Sorting and outputing results... \n" if (DEBUG);
-	@gsites = sort {
-		$a->{'other_mm'} <=> $b->{'other_mm'}
-			||
-		$a->{'p21'} <=> $b->{'p21'}
-			||
-		$a->{'p3'} <=> $b->{'p3'}
-			||
-		$a->{'p2'} <=> $b->{'p2'}
-			||
-		$a->{'p1'} <=> $b->{'p1'}
-	} @gsites;
-	print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
-
 	my $result_count = 0;
 	my (@opt, @subopt);
 	foreach my $site (@gsites) {
-		my $guide_RNA = design_guide_RNA($site);
-		$site->{'guide'} = $guide_RNA;
 		$site->{'name'} = "$construct$result_count";
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
@@ -570,8 +555,23 @@ sub score_sites {
 			}
 		}
 
+		$site->{'guide'} = design_guide_RNA($site);
 		push @scored, $site;
 	}
+
+	print STDERR "Sorting and outputing results... \n" if (DEBUG);
+	@gsites = sort {
+		$a->{'other_mm'} <=> $b->{'other_mm'}
+			||
+		$a->{'p21'} <=> $b->{'p21'}
+			||
+		$a->{'p3'} <=> $b->{'p3'}
+			||
+		$a->{'p2'} <=> $b->{'p2'}
+			||
+		$a->{'p1'} <=> $b->{'p1'}
+	} @gsites;
+	print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
 
 	return @scored;
 }
@@ -886,6 +886,14 @@ sub base_pair {
 	push @hit, '      }';
 
 	return @hit;
+}
+
+########################################
+# Function: job_submitter
+# Submits jobs to appropriate system
+########################################
+sub job_submitter {
+	my $system = shift;
 }
 
 ########################################
