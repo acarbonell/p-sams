@@ -119,7 +119,7 @@ sub pipeline {
 			my @seqs = split /;/, $site->{'seqs'};
 			my @names = split /;/, $site->{'names'};
 			for (my $i = 0; $i < scalar(@seqs); $i++) {
-				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $guide_RNA);
+				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide_RNA'});
 				push @insert, join("\n      ", @hit);
 			}
 			if ($off_targets == 0) {
