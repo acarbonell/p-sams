@@ -4,7 +4,6 @@ use warnings;
 use Getopt::Std;
 use Config::Tiny;
 use DBI;
-#use String::Approx qw(adist);
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
 use constant DEBUG => 1;
@@ -101,7 +100,7 @@ sub pipeline {
 
 	# Scoring sites
 	my $target_count = scalar(keys(%{$ids}));
-	@gsites = score_sites($target_count, $seed, @gsites);
+	@gsites = score_sites($target_count, $seed, $fb, @gsites);
 
 	my $result_count = 0;
 	my (@opt, @subopt);
@@ -109,10 +108,7 @@ sub pipeline {
 		$site->{'name'} = "$construct$result_count";
 		# TargetFinder
 		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
-		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide_RNA'}, $fb);
-		$site->{'star'} = $star;
-		$site->{'oligo1'} = $oligo1;
-		$site->{'oligo2'} = $oligo2;
+
 		if ($fasta) {
 			# Add missing FASTA targets
 			my @insert;
@@ -396,6 +392,7 @@ sub group_tsites {
 sub score_sites {
 	my $min_site_count = shift;
 	my $seed = shift;
+	my $fb = shift;
 	my @gsites = @_;
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
@@ -556,11 +553,15 @@ sub score_sites {
 		}
 
 		$site->{'guide'} = design_guide_RNA($site);
+		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide_RNA'}, $fb);
+		$site->{'star'} = $star;
+		$site->{'oligo1'} = $oligo1;
+		$site->{'oligo2'} = $oligo2;
 		push @scored, $site;
 	}
 
 	print STDERR "Sorting and outputing results... \n" if (DEBUG);
-	@gsites = sort {
+	@scored = sort {
 		$a->{'other_mm'} <=> $b->{'other_mm'}
 			||
 		$a->{'p21'} <=> $b->{'p21'}
@@ -570,8 +571,8 @@ sub score_sites {
 		$a->{'p2'} <=> $b->{'p2'}
 			||
 		$a->{'p1'} <=> $b->{'p1'}
-	} @gsites;
-	print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
+	} @scored;
+	print STDERR "Analyzing ".scalar(@scored)." total sites... \n" if (DEBUG);
 
 	return @scored;
 }
