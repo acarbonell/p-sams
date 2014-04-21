@@ -115,7 +115,7 @@ sub pipeline {
 			my @seqs = split /;/, $site->{'seqs'};
 			my @names = split /;/, $site->{'names'};
 			for (my $i = 0; $i < scalar(@seqs); $i++) {
-				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide_RNA'});
+				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
 				push @insert, join("\n      ", @hit);
 			}
 			if ($off_targets == 0) {
@@ -554,7 +554,7 @@ sub score_sites {
 
 		my $guide = design_guide_RNA($site);
 		$site->{'guide'} = $guide;
-		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide_RNA'}, $fb);
+		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide'}, $fb);
 		$site->{'star'} = $star;
 		$site->{'oligo1'} = $oligo1;
 		$site->{'oligo2'} = $oligo2;
