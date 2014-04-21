@@ -7,7 +7,6 @@ use DBI;
 #use String::Approx qw(adist);
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
-use PBS;
 use constant DEBUG => 1;
 use Data::Dumper;
 
@@ -30,10 +29,6 @@ our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
-
-# Connect to PBS server
-my $pbs = PBS->new();
-$pbs->connect() || die $pbs->error(), "\n";
 
 ################################################################################
 # End variables
@@ -77,7 +72,6 @@ if ($construct eq 'amiRNA') {
 	arg_error("Construct type $construct is not supported!");
 }
 
-$pbs->disconnect();
 exit;
 ################################################################################
 # End main
