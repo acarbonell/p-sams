@@ -7,6 +7,7 @@ use DBI;
 #use String::Approx qw(adist);
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
+use PBS;
 use constant DEBUG => 1;
 use Data::Dumper;
 
@@ -30,6 +31,10 @@ our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
 
+# Connect to PBS server
+my $pbs = PBS->new();
+$pbs->connect() || die $pbs->error(), "\n";
+
 ################################################################################
 # End variables
 ################################################################################
@@ -48,10 +53,10 @@ if ($construct eq 'amiRNA') {
 		my @accessions = parse_list(',', $accession_list);
 		$ids = build_fg_index(@accessions);
 	}
-	
+
 	# Run pipeline
 	pipeline($ids, $seed, $bg, $fb, $construct);
-	
+
 } elsif ($construct eq 'syntasiRNA') {
 	my $bg = ($opt{'o'}) ? 1 : 0;
 	if ($fasta) {
@@ -72,6 +77,7 @@ if ($construct eq 'amiRNA') {
 	arg_error("Construct type $construct is not supported!");
 }
 
+$pbs->disconnect();
 exit;
 ################################################################################
 # End main
@@ -91,17 +97,17 @@ sub pipeline {
 	my $bg = shift;
 	my $fb = shift;
 	my $construct = shift;
-	
+
 	# Find sites
 	my @t_sites = get_tsites($ids, $seed, $bg);
-	
+
 	# Group sites
 	my @gsites = group_tsites($seed, @t_sites);
-	
+
 	# Scoring sites
 	my $target_count = scalar(keys(%{$ids}));
 	@gsites = score_sites($target_count, $seed, @gsites);
-	
+
 	print STDERR "Sorting and outputing results... \n" if (DEBUG);
 	@gsites = sort {
 		$a->{'other_mm'} <=> $b->{'other_mm'}
@@ -115,7 +121,7 @@ sub pipeline {
 		$a->{'p1'} <=> $b->{'p1'}
 	} @gsites;
 	print STDERR "Analyzing ".scalar(@gsites)." total sites... \n" if (DEBUG);
-	
+
 	my $result_count = 0;
 	my (@opt, @subopt);
 	foreach my $site (@gsites) {
@@ -156,7 +162,7 @@ sub pipeline {
 				}
 				push @new_json, join(",\n", @insert).',';
 				for (my $i = 3; $i < scalar(@json); $i++) {
-					push @new_json, $json[$i];	
+					push @new_json, $json[$i];
 				}
 				$site->{'tf'} = \@new_json;
 				my %hash;
@@ -178,17 +184,17 @@ sub pipeline {
 		}
 		last if ($result_count == 3);
 	}
-	
+
 	@subopt = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @subopt;
-	
+
 	$result_count = 1;
 	print "{\n";
 	print '  "optimal": {'."\n";
-	
+
 	my @json;
 	foreach my $site (@opt) {
 		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
-	
+
 		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
 		$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
 		$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
@@ -202,14 +208,14 @@ sub pipeline {
 	print join(",\n", @json)."\n";
 	print '  },'."\n";
 	print '  "suboptimal": {'."\n";
-	
+
 	my $result = 1;
 	@json = ();
 	foreach my $ssite (@subopt) {
 		my $site = \%{$ssite->{'site'}};
-		
+
 		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
-		
+
 		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
 		$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
 		$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
@@ -252,7 +258,7 @@ sub build_fg_index_fasta {
 	}
 	print STDERR scalar(keys(%ids))." sequences loaded..." if (DEBUG);
 	print STDERR "done\n" if (DEBUG);
-	
+
 	return \%ids;
 }
 
@@ -263,17 +269,17 @@ sub build_fg_index_fasta {
 sub build_fg_index {
 	my @accessions = @_;
 	my %ids;
-	
+
 	print STDERR "Building foreground index... " if (DEBUG);
 	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` LIKE ?");
 	foreach my $accession (@accessions) {
 		# If the user entered transcript IDs we need to convert to gene IDs
 		$accession =~ s/\.\d+$//;
-		
+
 		# Get transcript names
 		$sth->execute("$accession%");
 		while (my $result = $sth->fetchrow_hashref) {
-			#$ids{$accession}->{$result->{'transcript'}} = '';	
+			#$ids{$accession}->{$result->{'transcript'}} = '';
 			$ids{$result->{'transcript'}} = '';
 			open FASTA, "samtools faidx $mRNAdb $result->{'transcript'} |";
 			while (my $line = <FASTA>) {
@@ -298,11 +304,11 @@ sub get_tsites {
 	my $ids = shift;
 	my $seed = shift;
 	my $bg = shift;
-	
+
 	my @t_sites;
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
-	
+
 	print STDERR "Finding sites in foreground transcripts... \n" if (DEBUG);
 	my (%discard, %found);
 	my $sth = $dbh->prepare("SELECT * FROM `kmers` WHERE `kmer` = ?");
@@ -339,7 +345,7 @@ sub get_tsites {
 			push @t_sites, \%hash;
 		}
 	}
-	
+
 	return @t_sites;
 }
 
@@ -350,13 +356,13 @@ sub get_tsites {
 sub group_tsites {
 	my $seed = shift;
 	my @t_sites = @_;
-	
+
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
-	
+
 	print STDERR "Grouping sites... " if (DEBUG);
 	@t_sites = sort {substr($a->{'seq'},$offset,$seed) cmp substr($b->{'seq'},$offset,$seed) || $a->{'name'} cmp $b->{'name'}} @t_sites;
-	
+
 	my (@names, $lastSeq, @seqs, @gsites);
 	my $score = 0;
 	my $i = 0;
@@ -373,7 +379,7 @@ sub group_tsites {
 			$hash{'names'} = join(";",@names);
 			$hash{'seqs'} = join(";", @seqs);
 			#$hash{'score'} = $score;
-			
+
 			# Edit distances
 			#if (scalar(@names) > 1) {
 			#	my @distances = adist(@seqs);
@@ -383,11 +389,11 @@ sub group_tsites {
 			#	$hash{'distance'} = 0;
 			#}
 			push @gsites, \%hash;
-			
+
 			@names = $row->{'name'};
 			@seqs = $row->{'seq'};
 			#$score = $row->{'ideal'};
-			
+
 			$lastSeq = $row->{'seq'};
 			if ($i == scalar(@t_sites) - 1) {
 				my %last;
@@ -400,7 +406,7 @@ sub group_tsites {
 		$i++;
 	}
 	print STDERR "done\n" if (DEBUG);
-	
+
 	return @gsites;
 }
 
@@ -415,17 +421,17 @@ sub score_sites {
 	my $site_length = 21;
 	my $offset = $site_length - $seed - 1;
 	my @scored;
-	
+
 	# Score sites on:
 	#     Pos. 1
 	#     Pos. 2
 	#     Pos. 3
 	#     Non-seed sites
 	#     Pos. 21
-	
+
 	foreach my $site (@gsites) {
 		my @sites = split /;/, $site->{'seqs'};
-		
+
 		next if (scalar(@sites) < $min_site_count);
 		# Get the max edit distance for this target site group
 		#if (scalar(@sites) > 1) {
@@ -440,8 +446,8 @@ sub score_sites {
 		#} else {
 		#	$site->{'distance'} = 0;
 		#}
-		
-		
+
+
 		# Score sites on position 21
 		for (my $i = 20; $i <= 20; $i++) {
 			my %nts = (
@@ -474,7 +480,7 @@ sub score_sites {
 				#$site->{'distance'}-- if (scalar(@sites) > 1);
 			}
 		}
-		
+
 		# Score sites on position 1
 		for (my $i = 0; $i <= 0; $i++) {
 			my %nts = (
@@ -500,7 +506,7 @@ sub score_sites {
 				#$site->{'distance'}--;
 			}
 		}
-		
+
 		# Score sites on position 2
 		for (my $i = 1; $i <= 1; $i++) {
 			my %nts = (
@@ -528,7 +534,7 @@ sub score_sites {
 				#$site->{'distance'}--;
 			}
 		}
-		
+
 		# Score sites on position 3
 		for (my $i = 2; $i <= 2; $i++) {
 			my %nts = (
@@ -552,7 +558,7 @@ sub score_sites {
 				#$site->{'distance'}--;
 			}
 		}
-		
+
 		# Score remaining sites
 		$site->{'other_mm'} = 0;
 		for (my $i = 3; $i < $offset; $i++) {
@@ -569,10 +575,10 @@ sub score_sites {
 				$site->{'other_mm'}++;
 			}
 		}
-		
+
 		push @scored, $site;
 	}
-	
+
 	return @scored;
 }
 
@@ -584,7 +590,7 @@ sub score_sites {
 sub design_guide_RNA {
 	my $site = shift;
 	my $guide;
-	
+
 	my %mm = (
 		'A' => 'A',
 		'C' => 'C',
@@ -602,7 +608,7 @@ sub design_guide_RNA {
 		'CGT' => 'T',
 		'ACGT' => 'A'
 	);
-	
+
 	my %bp = (
 		'A' => 'T',
 		'C' => 'G',
@@ -630,7 +636,7 @@ sub design_guide_RNA {
 	#$site->{'p1'}
 	#$site->{'p21'}
 	my @sites = split /;/, $site->{'seqs'};
-	
+
 	# Create guide RNA string
 	for (my $i = 0; $i <= 20; $i++) {
 		my %nts = (
@@ -639,12 +645,12 @@ sub design_guide_RNA {
 			'G' => 0,
 			'T' => 0
 		);
-		
+
 		# Index nucleotides at position i
 		foreach my $seq (@sites) {
 			$nts{substr($seq,$i,1)}++;
 		}
-		
+
 		# Create a unique nt diversity screen for choosing an appropriate base pair
 		my $str;
 		foreach my $nt ('A','C','G','T') {
@@ -652,7 +658,7 @@ sub design_guide_RNA {
 				$str .= $nt;
 			}
 		}
-		
+
 		if ($i == 0) {
 			# Pos 1 is intentionally mismatched so any base is allowed here
 			# However, if G and T bases are present together then pairing is unavoidable due to G:U base-pairing
@@ -668,7 +674,7 @@ sub design_guide_RNA {
 			$guide .= $bp{$str};
 		}
 	}
-	
+
 	return reverse $guide;
 }
 
@@ -681,7 +687,7 @@ sub off_target_check {
 	my $site = shift;
 	my $mRNAdb = shift;
 	my $name = shift;
-	
+
 	# Format of site data structure
 	#$site->{'names'}
 	#$site->{'seqs'}
@@ -691,7 +697,7 @@ sub off_target_check {
 	#$site->{'p1'}
 	#$site->{'p21'}
 	#$site->{'guide'}
-	
+
 	my $offCount = 0;
 	my $onCount = 0;
 	my @json;
@@ -703,7 +709,7 @@ sub off_target_check {
 		if ($line =~ /Target accession/) {
 			my ($tag, $transcript) = split /\:\s/, $line;
 			$transcript =~ s/",*//g;
-			
+
 			$sth->execute($transcript);
 			my $result = $sth->fetchrow_hashref;
 			if ($result->{'description'}) {
@@ -714,7 +720,7 @@ sub off_target_check {
 			} else {
 				push @json, '        "Target description": "unknown",';
 			}
-			
+
 			if ($site->{'names'} =~ /$transcript/) {
 				$onCount++;
 			} else {
@@ -733,17 +739,17 @@ sub off_target_check {
 sub oligo_designer {
 	my $guide = shift;
 	my $type = shift;
-	
+
 	my $rev = reverse $guide;
 	$rev =~ tr/ACGTacgt/TGCAtgca/;
-	
+
 	my @temp = split //, $rev;
 	my $c = $temp[10];
 	my $g = $temp[2];
 	my $n = $temp[20];
-	
+
 	$c =~ tr/[AGCT]/[CTAG]/;
-	
+
 	my ($star1, $oligo1, $oligo2, $realstar, $string, $bsa1, $bsa2);
 	if ($type eq 'eudicot') {
 		$star1 = substr($rev,0,10).$c.substr($rev,11,10);
@@ -782,14 +788,14 @@ sub base_pair {
 	my $name = shift;
 	my $transcript = shift;
 	my $guide = shift;
-	
+
 	my $start = index($transcript,$target);
 	if ($start == -1) {
 		print STDERR "Warning: site $target not found in transcript $name!\n\n";
 		return;
 	}
 	my $end = $start + length($target) - 1;
-	
+
 	my %bp;
 	$bp{"AU"} = 0;
 	$bp{"UA"} = 0;
@@ -820,11 +826,11 @@ sub base_pair {
 	my $score = 0;
 	my $mismatch = 0;
 	my $gu = 0;
-	
+
 	$target =~ s/T/U/g;
 	$guide =~ s/T/U/g;
 	$guide = reverse $guide;
-	
+
 	my @guide_nts = split //, $guide;
 	my @target_nts = split //, $target;
 	for (my $i = 1; $i <= length($guide); $i++) {
@@ -869,10 +875,10 @@ sub base_pair {
 			$score += $position;
 		}
 	}
-	
+
 	$homology_string = reverse $homology_string;
 	$homology_string =~ s/ /\&nbsp/g;
-	
+
 	my @hit;
 	push @hit, '      {';
 	push @hit, '        "Target accession": "'.$name.'",';
@@ -884,7 +890,7 @@ sub base_pair {
 	push @hit, '        "Base pairing": "'.$homology_string.'",';
 	push @hit, '        "amiRNA sequence": "'.$guide.'"';
 	push @hit, '      }';
-	
+
 	return @hit;
 }
 
@@ -942,7 +948,7 @@ sub arg_check {
 	} else {
 		$construct = 'amiRNA';
 	}
-	
+
 }
 
 ########################################
