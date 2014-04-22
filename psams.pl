@@ -25,7 +25,7 @@ our $mRNAdb = $conf->{$species}->{'mRNA'};
 our $db = $conf->{$species}->{'sql'};
 our $seed = 15;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
-our $system = 'serial';
+our $execution_system = 'serial';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
@@ -102,7 +102,12 @@ sub pipeline {
 	my $target_count = scalar(keys(%{$ids}));
 	@gsites = score_sites($target_count, $seed, $fb, @gsites);
 
-	my ($opt, $subopt) = job_submitter($target_count, $construct, $ids, @gsites);
+	my ($opt, $subopt);
+	if ($execution_system eq 'serial') {
+		($opt, $subopt) = serial_jobs($target_count, $construct, $ids, @gsites);
+	}
+
+	#my ($opt, $subopt) = job_submitter($target_count, $construct, $ids, @gsites);
 
 	@{$subopt} = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @{$subopt};
 
@@ -835,14 +840,16 @@ sub base_pair {
 }
 
 ########################################
-# Function: job_submitter
-# Submits jobs to appropriate system
+# Function: serial_jobs
+# Submits jobs in serial on local system
 ########################################
-sub job_submitter {
+sub serial_jobs {
 	my $target_count = shift;
 	my $construct = shift;
 	my $ids = shift;
 	my @gsites = @_;
+
+	my $n_jobs = scalar(@gsites);
 
 	my $result_count = 0;
 	my (@opt, @subopt);
