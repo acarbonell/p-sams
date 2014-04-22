@@ -105,9 +105,9 @@ sub pipeline {
 	my ($opt, $subopt);
 	if ($execution_system eq 'serial') {
 		($opt, $subopt) = serial_jobs($target_count, $construct, $ids, @gsites);
+	} elsif ($execution_system eq 'pbs') {
+		($opt, $subopt) = pbs_jobs($target_count, $construct, $ids, @gsites);
 	}
-
-	#my ($opt, $subopt) = job_submitter($target_count, $construct, $ids, @gsites);
 
 	@{$subopt} = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @{$subopt};
 
@@ -630,8 +630,9 @@ sub design_guide_RNA {
 ########################################
 sub off_target_check {
 	my $site = shift;
-	my $mRNAdb = shift;
-	my $name = shift;
+	#my $mRNAdb = shift;
+	#my $name = shift;
+	my @tf_results = @_;
 
 	# Format of site data structure
 	#$site->{'names'}
@@ -647,8 +648,9 @@ sub off_target_check {
 	my $onCount = 0;
 	my @json;
 	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` = ?");
-	open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $name -p json |";
-	while (my $line = <TF>) {
+	#open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $name -p json |";
+	#while (my $line = <TF>) {
+	foreach my $line (@tf_results) {
 		chomp $line;
 		push @json, $line;
 		if ($line =~ /Target accession/) {
@@ -673,7 +675,7 @@ sub off_target_check {
 			}
 		}
 	}
-	close TF;
+	#close TF;
 	return ($offCount, $onCount, @json);
 }
 
@@ -855,8 +857,16 @@ sub serial_jobs {
 	my (@opt, @subopt);
 	foreach my $site (@gsites) {
 		$site->{'name'} = "$construct$result_count";
+
 		# TargetFinder
-		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
+		my @tf_results;
+		open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json |";
+		@tf_results = <TF>;
+		close TF;
+		my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+
+		## TargetFinder
+		#my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
 
 		if ($fasta) {
 			# Add missing FASTA targets
@@ -907,6 +917,28 @@ sub serial_jobs {
 			}
 		}
 		last if ($result_count == 3);
+	}
+
+	return (\@opt, \@subopt);
+}
+
+########################################
+# Function: pbs_jobs
+# Submits jobs in parallel to a Portable Batch System
+########################################
+sub pbs_jobs {
+	my $target_count = shift;
+	my $construct = shift;
+	my $ids = shift;
+	my @gsites = @_;
+
+	my $n_jobs = scalar(@gsites);
+
+	my $result_count = 0;
+	my (@opt, @subopt);
+
+	foreach my $site (@gsites) {
+
 	}
 
 	return (\@opt, \@subopt);
