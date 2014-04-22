@@ -25,7 +25,7 @@ our $mRNAdb = $conf->{$species}->{'mRNA'};
 our $db = $conf->{$species}->{'sql'};
 our $seed = 15;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
-our $system = 'pbs';
+our $system = 'serial';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
@@ -102,72 +102,16 @@ sub pipeline {
 	my $target_count = scalar(keys(%{$ids}));
 	@gsites = score_sites($target_count, $seed, $fb, @gsites);
 
-	my $result_count = 0;
-	my (@opt, @subopt);
-	foreach my $site (@gsites) {
-		$site->{'name'} = "$construct$result_count";
-		# TargetFinder
-		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
+	my ($opt, $subopt) = job_submitter($target_count, $construct, $ids, @gsites);
 
-		if ($fasta) {
-			# Add missing FASTA targets
-			my @insert;
-			my @seqs = split /;/, $site->{'seqs'};
-			my @names = split /;/, $site->{'names'};
-			for (my $i = 0; $i < scalar(@seqs); $i++) {
-				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
-				push @insert, join("\n      ", @hit);
-			}
-			if ($off_targets == 0) {
-				@json = ();
-				push @json, '{';
-				push @json, '  "'.$construct.$result_count.'": {';
-				push @json, '    "hits": [';
-				push @json, join(",\n", @insert);
-				push @json, '    ]';
-				push @json, '  }';
-				push @json, '}';
-				$site->{'tf'} = \@json;
-				push @opt, $site;
-				$result_count++;
-			} else {
-				my @new_json;
-				for (my $i = 0; $i <= 2; $i++) {
-					push @new_json, $json[$i];
-				}
-				push @new_json, join(",\n", @insert).',';
-				for (my $i = 3; $i < scalar(@json); $i++) {
-					push @new_json, $json[$i];
-				}
-				$site->{'tf'} = \@new_json;
-				my %hash;
-				$hash{'off_targets'} = $off_targets;
-				$hash{'site'} = $site;
-				push @subopt, \%hash;
-			}
-		} else {
-			$site->{'tf'} = \@json;
-			if ($off_targets == 0 && $on_targets == $target_count) {
-				push @opt, $site;
-				$result_count++;
-			} else {
-				my %hash;
-				$hash{'off_targets'} = $off_targets;
-				$hash{'site'} = $site;
-				push @subopt, \%hash;
-			}
-		}
-		last if ($result_count == 3);
-	}
+	@{$subopt} = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @{$subopt};
 
-	@subopt = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @subopt;
-
-	$result_count = 1;
+	my $result_count = 1;
 	print "{\n";
 	print '  "optimal": {'."\n";
 
 	my @json;
-	foreach my $site (@opt) {
+	foreach my $site (@{$opt}) {
 		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
 
 		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
@@ -186,7 +130,7 @@ sub pipeline {
 
 	my $result = 1;
 	@json = ();
-	foreach my $ssite (@subopt) {
+	foreach my $ssite (@{$subopt}) {
 		my $site = \%{$ssite->{'site'}};
 
 		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
@@ -895,7 +839,70 @@ sub base_pair {
 # Submits jobs to appropriate system
 ########################################
 sub job_submitter {
-	my $system = shift;
+	my $target_count = shift;
+	my $construct = shift;
+	my $ids = shift;
+	my @gsites = @_;
+
+	my $result_count = 0;
+	my (@opt, @subopt);
+	foreach my $site (@gsites) {
+		$site->{'name'} = "$construct$result_count";
+		# TargetFinder
+		my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
+
+		if ($fasta) {
+			# Add missing FASTA targets
+			my @insert;
+			my @seqs = split /;/, $site->{'seqs'};
+			my @names = split /;/, $site->{'names'};
+			for (my $i = 0; $i < scalar(@seqs); $i++) {
+				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+				push @insert, join("\n      ", @hit);
+			}
+			if ($off_targets == 0) {
+				@json = ();
+				push @json, '{';
+				push @json, '  "'.$construct.$result_count.'": {';
+				push @json, '    "hits": [';
+				push @json, join(",\n", @insert);
+				push @json, '    ]';
+				push @json, '  }';
+				push @json, '}';
+				$site->{'tf'} = \@json;
+				push @opt, $site;
+				$result_count++;
+			} else {
+				my @new_json;
+				for (my $i = 0; $i <= 2; $i++) {
+					push @new_json, $json[$i];
+				}
+				push @new_json, join(",\n", @insert).',';
+				for (my $i = 3; $i < scalar(@json); $i++) {
+					push @new_json, $json[$i];
+				}
+				$site->{'tf'} = \@new_json;
+				my %hash;
+				$hash{'off_targets'} = $off_targets;
+				$hash{'site'} = $site;
+				push @subopt, \%hash;
+			}
+		} else {
+			$site->{'tf'} = \@json;
+			if ($off_targets == 0 && $on_targets == $target_count) {
+				push @opt, $site;
+				$result_count++;
+			} else {
+				my %hash;
+				$hash{'off_targets'} = $off_targets;
+				$hash{'site'} = $site;
+				push @subopt, \%hash;
+			}
+		}
+		last if ($result_count == 3);
+	}
+
+	return (\@opt, \@subopt);
 }
 
 ########################################
