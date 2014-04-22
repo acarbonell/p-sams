@@ -103,8 +103,8 @@ sub pipeline {
 	@gsites = score_sites($target_count, $seed, $fb, @gsites);
 
 	my ($opt, $subopt);
-	if ($execution_system eq 'serial') {
-		($opt, $subopt) = serial_jobs($target_count, $construct, $ids, @gsites);
+	if ($execution_system eq 'serial' || $bg == 0) {
+		($opt, $subopt) = serial_jobs($target_count, $construct, $ids, $bg, @gsites);
 	} elsif ($execution_system eq 'pbs') {
 		($opt, $subopt) = pbs_jobs($target_count, $construct, $ids, @gsites);
 	}
@@ -849,27 +849,71 @@ sub serial_jobs {
 	my $target_count = shift;
 	my $construct = shift;
 	my $ids = shift;
+	my $bg = shift;
 	my @gsites = @_;
-
-	my $n_jobs = scalar(@gsites);
 
 	my $result_count = 0;
 	my (@opt, @subopt);
 	foreach my $site (@gsites) {
 		$site->{'name'} = "$construct$result_count";
 
-		# TargetFinder
-		my @tf_results;
-		open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json |";
-		@tf_results = <TF>;
-		close TF;
-		my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+		if ($bg) {
+			# TargetFinder
+			my @tf_results;
+			open TF, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json |";
+			@tf_results = <TF>;
+			close TF;
+			my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
 
-		## TargetFinder
-		#my ($off_targets, $on_targets, @json) = off_target_check($site, $mRNAdb, "$construct$result_count");
-
-		if ($fasta) {
-			# Add missing FASTA targets
+			if ($fasta) {
+				# Add missing FASTA targets
+				my @insert;
+				my @seqs = split /;/, $site->{'seqs'};
+				my @names = split /;/, $site->{'names'};
+				for (my $i = 0; $i < scalar(@seqs); $i++) {
+					my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+					push @insert, join("\n      ", @hit);
+				}
+				if ($off_targets == 0) {
+					@json = ();
+					push @json, '{';
+					push @json, '  "'.$construct.$result_count.'": {';
+					push @json, '    "hits": [';
+					push @json, join(",\n", @insert);
+					push @json, '    ]';
+					push @json, '  }';
+					push @json, '}';
+					$site->{'tf'} = \@json;
+					push @opt, $site;
+					$result_count++;
+				} else {
+					my @new_json;
+					for (my $i = 0; $i <= 2; $i++) {
+						push @new_json, $json[$i];
+					}
+					push @new_json, join(",\n", @insert).',';
+					for (my $i = 3; $i < scalar(@json); $i++) {
+						push @new_json, $json[$i];
+					}
+					$site->{'tf'} = \@new_json;
+					my %hash;
+					$hash{'off_targets'} = $off_targets;
+					$hash{'site'} = $site;
+					push @subopt, \%hash;
+				}
+			} else {
+				$site->{'tf'} = \@json;
+				if ($off_targets == 0 && $on_targets == $target_count) {
+					push @opt, $site;
+					$result_count++;
+				} else {
+					my %hash;
+					$hash{'off_targets'} = $off_targets;
+					$hash{'site'} = $site;
+					push @subopt, \%hash;
+				}
+			}
+		} else {
 			my @insert;
 			my @seqs = split /;/, $site->{'seqs'};
 			my @names = split /;/, $site->{'names'};
@@ -877,44 +921,17 @@ sub serial_jobs {
 				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
 				push @insert, join("\n      ", @hit);
 			}
-			if ($off_targets == 0) {
-				@json = ();
-				push @json, '{';
-				push @json, '  "'.$construct.$result_count.'": {';
-				push @json, '    "hits": [';
-				push @json, join(",\n", @insert);
-				push @json, '    ]';
-				push @json, '  }';
-				push @json, '}';
-				$site->{'tf'} = \@json;
-				push @opt, $site;
-				$result_count++;
-			} else {
-				my @new_json;
-				for (my $i = 0; $i <= 2; $i++) {
-					push @new_json, $json[$i];
-				}
-				push @new_json, join(",\n", @insert).',';
-				for (my $i = 3; $i < scalar(@json); $i++) {
-					push @new_json, $json[$i];
-				}
-				$site->{'tf'} = \@new_json;
-				my %hash;
-				$hash{'off_targets'} = $off_targets;
-				$hash{'site'} = $site;
-				push @subopt, \%hash;
-			}
-		} else {
+			my @json;
+			push @json, '{';
+			push @json, '  "'.$site->{'name'}.'": {';
+			push @json, '    "hits": [';
+			push @json, join(",\n", @insert);
+			push @json, '    ]';
+			push @json, '  }';
+			push @json, '}';
 			$site->{'tf'} = \@json;
-			if ($off_targets == 0 && $on_targets == $target_count) {
-				push @opt, $site;
-				$result_count++;
-			} else {
-				my %hash;
-				$hash{'off_targets'} = $off_targets;
-				$hash{'site'} = $site;
-				push @subopt, \%hash;
-			}
+			push @opt, $site;
+			$result_count++;
 		}
 		last if ($result_count == 3);
 	}
@@ -937,7 +954,9 @@ sub pbs_jobs {
 	my $result_count = 0;
 	my (@opt, @subopt);
 
-	foreach my $site (@gsites) {
+	# Submit TargetFinder jobs to queue
+	for (my $j = 0; $j < $n_jobs; $j++) {
+		my $site = $gsites[$j];
 
 	}
 
