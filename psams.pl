@@ -1064,7 +1064,7 @@ sub pbs_jobs {
 			`qdel $jobs{$j}->{'job_id'}`;
 		}
 		# Remove files
-		unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
+		#unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
 	}
 
 	return (\@opt, \@subopt);
