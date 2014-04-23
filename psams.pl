@@ -971,15 +971,18 @@ sub pbs_jobs {
 		$jobs{$j}->{'file'} = $filename;
 
 		# Submit job to queue
-		open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
-		my $job_id = <QSUB>;
-		close QSUB;
-		if ($job_id) {
-			chomp $job_id;
-			$jobs{$j}->{'job_id'} = $job_id;
-			$jobs{$j}->{'status'} = 'queued';
-		} else {
-			$jobs{$j}->{'status'} = 'failed';
+		for (my $try = 1; $try <= 3; $try++) {
+			open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
+			my $job_id = <QSUB>;
+			close QSUB;
+			if ($job_id) {
+				chomp $job_id;
+				$jobs{$j}->{'job_id'} = $job_id;
+				$jobs{$j}->{'status'} = 'queued';
+				last;
+			} else {
+				$jobs{$j}->{'status'} = 'failed';
+			}
 		}
 	}
 
