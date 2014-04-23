@@ -956,128 +956,146 @@ sub pbs_jobs {
 	my $template = 'tf_XXXXXX';
 
 	my $n_jobs = scalar(@gsites);
-
-	# Submit TargetFinder jobs to queue
-	my %jobs;
-	for (my $j = 0; $j < $n_jobs; $j++) {
-		my $site = $gsites[$j];
-		$site->{'name'} = "$construct$j";
-
-		# Open temporary shell script to define job
-		my ($fh, $filename) = tempfile($template, SUFFIX => '.sh', DIR => $tmpdir);
-		print $fh '#!/bin/bash'."\n";
-		print $fh "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
-		close $fh;
-		$jobs{$j}->{'file'} = $filename;
-
-		# Submit job to queue
-		for (my $try = 1; $try <= 3; $try++) {
-			open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
-			my $job_id = <QSUB>;
-			close QSUB;
-			if ($job_id) {
-				chomp $job_id;
-				$jobs{$j}->{'job_id'} = $job_id;
-				$jobs{$j}->{'status'} = 'queued';
-				last;
-			} else {
-				$jobs{$j}->{'status'} = 'failed';
-			}
-		}
-	}
-
+	my $batch_size = 48;
+	my $batches = int($n_jobs / $batch_size) + 1;
+	my $job = 0;
 	my $result_count = 0;
-	my $remaining = $n_jobs;
 	my (@opt, @subopt);
-	while ($remaining > 0) {
-		for (my $j = 0; $j < $n_jobs; $j++) {
-			if ($jobs{$j}->{'status'} eq 'queued') {
-				open QSTAT, "qstat -f $jobs{$j}->{'job_id'} 2> /dev/null |";
-				my $status = <QSTAT>;
-				close QSTAT;
-				# Job is finished
-				if (!$status) {
-					$jobs{$j}->{'status'} = 'finished';
-					$remaining--;
-					my @tmp = split /\./, $jobs{$j}->{'job_id'};
-					my $job_number = $tmp[0];
-					open (TF, "$jobs{$j}->{'file'}.o$job_number") or warn " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
-					my @tf_results = <TF>;
-					close TF;
 
-					# Off-targets
-					if (@tf_results) {
-						my $site = $gsites[$j];
-						my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+	for (my $batch = 1; $batch <= $batches; $batch++) {
+		print STDERR "Batch $batch, queuing jobs... " if DEBUG;
+		my $end = $job + $batch_size - 1;
+		if ($end >= $n_jobs) {
+			$end = $n_jobs - 1;
+		}
 
-						if ($fasta) {
-							# Add missing FASTA targets
-							my @insert;
-							my @seqs = split /;/, $site->{'seqs'};
-							my @names = split /;/, $site->{'names'};
-							for (my $i = 0; $i < scalar(@seqs); $i++) {
-								my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
-								push @insert, join("\n      ", @hit);
-							}
-							if ($off_targets == 0) {
-								@json = ();
-								push @json, '{';
-								push @json, '  "'.$construct.$result_count.'": {';
-								push @json, '    "hits": [';
-								push @json, join(",\n", @insert);
-								push @json, '    ]';
-								push @json, '  }';
-								push @json, '}';
+		# Submit TargetFinder jobs to queue
+		my %jobs;
+		for (my $j = $job; $j <= $end; $j++) {
+			my $site = $gsites[$j];
+			$site->{'name'} = "$construct$j";
+
+			# Open temporary shell script to define job
+			my ($fh, $filename) = tempfile($template, SUFFIX => '.sh', DIR => $tmpdir);
+			print $fh '#!/bin/bash'."\n";
+			print $fh "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
+			close $fh;
+			$jobs{$j}->{'file'} = $filename;
+
+			# Submit job to queue
+			for (my $try = 1; $try <= 3; $try++) {
+				open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
+				my $job_id = <QSUB>;
+				close QSUB;
+				if ($job_id) {
+					chomp $job_id;
+					$jobs{$j}->{'job_id'} = $job_id;
+					$jobs{$j}->{'status'} = 'queued';
+					last;
+				} else {
+					$jobs{$j}->{'status'} = 'failed';
+				}
+			}
+			print STDERR "done\n" if DEBUG;
+		}
+
+		my $remaining = scalar(keys(%jobs));
+		print STDERR "Waiting for jobs to finish... $remaining\r" if DEBUG;
+		while ($remaining > 0) {
+			for (my $j = $job; $j < $end; $j++) {
+				if ($jobs{$j}->{'status'} eq 'queued') {
+					open QSTAT, "qstat -f $jobs{$j}->{'job_id'} 2> /dev/null |";
+					my $status = <QSTAT>;
+					close QSTAT;
+					# Job is finished
+					if (!$status) {
+						$jobs{$j}->{'status'} = 'finished';
+						$remaining--;
+						my @tmp = split /\./, $jobs{$j}->{'job_id'};
+						my $job_number = $tmp[0];
+						open (TF, "$jobs{$j}->{'file'}.o$job_number") or warn " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
+						my @tf_results = <TF>;
+						close TF;
+
+						# Off-targets
+						if (@tf_results) {
+							my $site = $gsites[$j];
+							my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+
+							if ($fasta) {
+								# Add missing FASTA targets
+								my @insert;
+								my @seqs = split /;/, $site->{'seqs'};
+								my @names = split /;/, $site->{'names'};
+								for (my $i = 0; $i < scalar(@seqs); $i++) {
+									my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+									push @insert, join("\n      ", @hit);
+								}
+								if ($off_targets == 0) {
+									@json = ();
+									push @json, '{';
+									push @json, '  "'.$construct.$result_count.'": {';
+									push @json, '    "hits": [';
+									push @json, join(",\n", @insert);
+									push @json, '    ]';
+									push @json, '  }';
+									push @json, '}';
+									$site->{'tf'} = \@json;
+									push @opt, $site;
+									$result_count++;
+								} else {
+									my @new_json;
+									for (my $i = 0; $i <= 2; $i++) {
+										push @new_json, $json[$i];
+									}
+									push @new_json, join(",\n", @insert).',';
+									for (my $i = 3; $i < scalar(@json); $i++) {
+										push @new_json, $json[$i];
+									}
+									$site->{'tf'} = \@new_json;
+									my %hash;
+									$hash{'off_targets'} = $off_targets;
+									$hash{'site'} = $site;
+									push @subopt, \%hash;
+								}
+							} else {
 								$site->{'tf'} = \@json;
-								push @opt, $site;
-								$result_count++;
-							} else {
-								my @new_json;
-								for (my $i = 0; $i <= 2; $i++) {
-									push @new_json, $json[$i];
+								if ($off_targets == 0 && $on_targets == $target_count) {
+									push @opt, $site;
+									$result_count++;
+								} else {
+									my %hash;
+									$hash{'off_targets'} = $off_targets;
+									$hash{'site'} = $site;
+									push @subopt, \%hash;
 								}
-								push @new_json, join(",\n", @insert).',';
-								for (my $i = 3; $i < scalar(@json); $i++) {
-									push @new_json, $json[$i];
-								}
-								$site->{'tf'} = \@new_json;
-								my %hash;
-								$hash{'off_targets'} = $off_targets;
-								$hash{'site'} = $site;
-								push @subopt, \%hash;
-							}
-						} else {
-							$site->{'tf'} = \@json;
-							if ($off_targets == 0 && $on_targets == $target_count) {
-								push @opt, $site;
-								$result_count++;
-							} else {
-								my %hash;
-								$hash{'off_targets'} = $off_targets;
-								$hash{'site'} = $site;
-								push @subopt, \%hash;
 							}
 						}
 					}
+				} elsif ($jobs{$j}->{'status'} eq 'failed') {
+					$jobs{$j}->{'status'} = 'finished';
+					$remaining--;
 				}
-			} elsif ($jobs{$j}->{'status'} eq 'failed') {
-				$jobs{$j}->{'status'} = 'finished';
-				$remaining--;
 			}
+			last if ($result_count == 3);
+			print STDERR "Waiting for jobs to finish... $remaining\r" if DEBUG;
 		}
-		last if ($result_count == 3);
-	}
+		print STDERR "Waiting for jobs to finish... done\n" if DEBUG;
 
-	# Cleanup
-	for (my $j = 0; $j < $n_jobs; $j++) {
-		my @tmp = split /\./, $jobs{$j}->{'job_id'};
-		my $job_number = $tmp[0];
-		# Dequeue remaining jobs
-		if ($jobs{$j}->{'status'} eq 'queued') {
-			`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
+		# Cleanup
+		print STDERR "Cleaning up... " if DEBUG;
+		for (my $j = $job; $j < $end; $j++) {
+			my @tmp = split /\./, $jobs{$j}->{'job_id'};
+			my $job_number = $tmp[0];
+			# Dequeue remaining jobs
+			if ($jobs{$j}->{'status'} eq 'queued') {
+				`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
+			}
+			# Remove files
+			unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
 		}
-		# Remove files
-		unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
+		$job = $end + 1;
+		print STDERR "done\n" if DEBUG;
 	}
 
 	return (\@opt, \@subopt);
