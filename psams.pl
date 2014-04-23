@@ -996,13 +996,13 @@ sub pbs_jobs {
 					$jobs{$j}->{'status'} = 'failed';
 				}
 			}
-			print STDERR "done\n" if DEBUG;
 		}
+		print STDERR "done\n" if DEBUG;
 
 		my $remaining = scalar(keys(%jobs));
 		print STDERR "Waiting for jobs to finish... $remaining\r" if DEBUG;
 		while ($remaining > 0) {
-			for (my $j = $job; $j < $end; $j++) {
+			for (my $j = $job; $j <= $end; $j++) {
 				if ($jobs{$j}->{'status'} eq 'queued') {
 					open QSTAT, "qstat -f $jobs{$j}->{'job_id'} 2> /dev/null |";
 					my $status = <QSTAT>;
@@ -1084,7 +1084,7 @@ sub pbs_jobs {
 
 		# Cleanup
 		print STDERR "Cleaning up... " if DEBUG;
-		for (my $j = $job; $j < $end; $j++) {
+		for (my $j = $job; $j <= $end; $j++) {
 			my @tmp = split /\./, $jobs{$j}->{'job_id'};
 			my $job_number = $tmp[0];
 			# Dequeue remaining jobs
