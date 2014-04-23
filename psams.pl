@@ -984,11 +984,11 @@ sub pbs_jobs {
 	while ($remaining > 0) {
 		for (my $j = 0; $j < $n_jobs; $j++) {
 			if ($jobs{$j}->{'status'} eq 'queued') {
-				open QSTAT, "qstat -f $jobs{$j}->{'job_id'} |";
+				open QSTAT, "qstat -f $jobs{$j}->{'job_id'} 2> /dev/null |";
 				my $status = <QSTAT>;
 				close QSTAT;
 				# Job is finished
-				if ($status =~ /qstat: Unknown Job Id/) {
+				if (!$status) {
 					$jobs{$j}->{'status'} = 'finished';
 					$remaining--;
 					my @tmp = split /\./, $jobs{$j}->{'job_id'};
