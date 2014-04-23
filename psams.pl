@@ -1089,9 +1089,11 @@ sub pbs_jobs {
 		print STDERR "Cleaning up... " if DEBUG;
 		for (my $j = $job; $j <= $end; $j++) {
 			# Dequeue remaining jobs
-			if ($jobs{$j}->{'status'} eq 'queued') {
-				`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
-			}
+			`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
+			# Remove files
+			#unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}","$jobs{$j}->{'file'}.e$jobs{$j}->{'jid'}");
+		}
+		for (my $j = $job; $j <= $end; $j++) {
 			# Remove files
 			unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}","$jobs{$j}->{'file'}.e$jobs{$j}->{'jid'}");
 		}
