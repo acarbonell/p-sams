@@ -6,6 +6,7 @@ use Config::Tiny;
 use DBI;
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
+use File::Temp qw(tempfile);
 use constant DEBUG => 1;
 use Data::Dumper;
 
@@ -20,6 +21,7 @@ arg_check();
 # Constants
 our $conf_file = "$Bin/../psams.conf";
 our $targetfinder = "$Bin/targetfinder.pl";
+our $tmpdir = "$Bin/../tmp";
 our $conf = Config::Tiny->read($conf_file);
 our $mRNAdb = $conf->{$species}->{'mRNA'};
 our $db = $conf->{$species}->{'sql'};
@@ -949,15 +951,119 @@ sub pbs_jobs {
 	my $ids = shift;
 	my @gsites = @_;
 
+	my $template = 'tf_XXXXXX';
+
 	my $n_jobs = scalar(@gsites);
 
-	my $result_count = 0;
-	my (@opt, @subopt);
-
 	# Submit TargetFinder jobs to queue
+	my %jobs;
 	for (my $j = 0; $j < $n_jobs; $j++) {
 		my $site = $gsites[$j];
+		$site->{'name'} = "$construct$j";
 
+		# Open temporary shell script to define job
+		my ($fh, $filename) = tempfile($template, SUFFIX => '.sh', DIR => $tmpdir);
+		print $fh, '#!/bin/bash'."\n";
+		print $fh, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
+		close $fh;
+		$jobs{$j}->{'file'} = $filename;
+
+		# Submit job to queue
+		open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
+		my $job_id = <QSUB>;
+		chomp $job_id;
+		$jobs{$j}->{'job_id'} = $job_id;
+		$jobs{$j}->{'status'} = 'queued';
+		close QSUB;
+	}
+
+	my $result_count = 0;
+	my $remaining = $n_jobs;
+	my (@opt, @subopt);
+	while ($remaining > 0) {
+		for (my $j = 0; $j < $n_jobs; $j++) {
+			if ($jobs{$j}->{'status'} eq 'queued') {
+				open QSTAT, "qstat -f $jobs{$j}->{'job_id'} |";
+				my $status = <QSTAT>;
+				close QSTAT;
+				# Job is finished
+				if ($status =~ /qstat: Unknown Job Id/) {
+					$jobs{$j}->{'status'} = 'finished';
+					$remaining--;
+					my @tmp = split /\./, $jobs{$j}->{'job_id'};
+					my $job_number = $tmp[0];
+					open (TF, "$jobs{$j}->{'file'}.o$job_number") or die " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
+					my @tf_results = <TF>;
+					close TF;
+
+					# Off-targets
+					my $site = $gsites[$j];
+					my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+
+					if ($fasta) {
+						# Add missing FASTA targets
+						my @insert;
+						my @seqs = split /;/, $site->{'seqs'};
+						my @names = split /;/, $site->{'names'};
+						for (my $i = 0; $i < scalar(@seqs); $i++) {
+							my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+							push @insert, join("\n      ", @hit);
+						}
+						if ($off_targets == 0) {
+							@json = ();
+							push @json, '{';
+							push @json, '  "'.$construct.$result_count.'": {';
+							push @json, '    "hits": [';
+							push @json, join(",\n", @insert);
+							push @json, '    ]';
+							push @json, '  }';
+							push @json, '}';
+							$site->{'tf'} = \@json;
+							push @opt, $site;
+							$result_count++;
+						} else {
+							my @new_json;
+							for (my $i = 0; $i <= 2; $i++) {
+								push @new_json, $json[$i];
+							}
+							push @new_json, join(",\n", @insert).',';
+							for (my $i = 3; $i < scalar(@json); $i++) {
+								push @new_json, $json[$i];
+							}
+							$site->{'tf'} = \@new_json;
+							my %hash;
+							$hash{'off_targets'} = $off_targets;
+							$hash{'site'} = $site;
+							push @subopt, \%hash;
+						}
+					} else {
+						$site->{'tf'} = \@json;
+						if ($off_targets == 0 && $on_targets == $target_count) {
+							push @opt, $site;
+							$result_count++;
+						} else {
+							my %hash;
+							$hash{'off_targets'} = $off_targets;
+							$hash{'site'} = $site;
+							push @subopt, \%hash;
+						}
+					}
+				}
+			}
+		}
+		last if ($result_count == 3);
+	}
+
+	# Cleanup
+	for (my $j = 0; $j < $n_jobs; $j++) {
+		my @tmp = split /\./, $jobs{$j}->{'job_id'};
+		my $job_number = $tmp[0];
+		# Dequeue remaining jobs
+		if ($jobs{$j}->{'status'} eq 'queued') {
+			`qdel $jobs{$j}->{'job_id'}`;
+		}
+		# Remove files
+		unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
 	}
 
 	return (\@opt, \@subopt);
