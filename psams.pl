@@ -202,7 +202,7 @@ sub build_fg_index {
 	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` LIKE ?");
 	foreach my $accession (@accessions) {
 		# If the user entered transcript IDs we need to convert to gene IDs
-		$accession =~ s/\.\d+$//;
+		$accession =~ s/\.\d{1,2}$//;
 
 		# Get transcript names
 		my $exists = 0;
