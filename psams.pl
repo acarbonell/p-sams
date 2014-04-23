@@ -989,8 +989,11 @@ sub pbs_jobs {
 				close QSUB;
 				if ($job_id) {
 					chomp $job_id;
+					my @tmp = split /\./, $job_id;
+					my $job_number = $tmp[0];
 					$jobs{$j}->{'job_id'} = $job_id;
 					$jobs{$j}->{'status'} = 'queued';
+					$jobs{$j}->{'jid'} = $job_number;
 					last;
 				} else {
 					$jobs{$j}->{'status'} = 'failed';
@@ -1004,16 +1007,16 @@ sub pbs_jobs {
 		while ($remaining > 0) {
 			for (my $j = $job; $j <= $end; $j++) {
 				if ($jobs{$j}->{'status'} eq 'queued') {
+					my @tmp = split /\./, $jobs{$j}->{'job_id'};
+					my $job_number = $tmp[0];
 					open QSTAT, "qstat -f $jobs{$j}->{'job_id'} 2> /dev/null |";
 					my $status = <QSTAT>;
 					close QSTAT;
 					# Job is finished
-					if (!$status) {
+					if (!$status && -e "$jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}") {
 						$jobs{$j}->{'status'} = 'finished';
 						$remaining--;
-						my @tmp = split /\./, $jobs{$j}->{'job_id'};
-						my $job_number = $tmp[0];
-						open (TF, "$jobs{$j}->{'file'}.o$job_number") or warn " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
+						open (TF, "$jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}") or warn " Cannot open file $jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}: $!\n";
 						my @tf_results = <TF>;
 						close TF;
 
@@ -1085,14 +1088,12 @@ sub pbs_jobs {
 		# Cleanup
 		print STDERR "Cleaning up... " if DEBUG;
 		for (my $j = $job; $j <= $end; $j++) {
-			my @tmp = split /\./, $jobs{$j}->{'job_id'};
-			my $job_number = $tmp[0];
 			# Dequeue remaining jobs
 			if ($jobs{$j}->{'status'} eq 'queued') {
 				`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
 			}
 			# Remove files
-			unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
+			unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$jobs{$j}->{'jid'}","$jobs{$j}->{'file'}.e$jobs{$j}->{'jid'}");
 		}
 		$job = $end + 1;
 		print STDERR "done\n" if DEBUG;
