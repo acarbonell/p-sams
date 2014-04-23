@@ -1074,7 +1074,7 @@ sub pbs_jobs {
 		my $job_number = $tmp[0];
 		# Dequeue remaining jobs
 		if ($jobs{$j}->{'status'} eq 'queued') {
-			`qdel $jobs{$j}->{'job_id'}`;
+			`qdel $jobs{$j}->{'job_id'} 2> /dev/null`;
 		}
 		# Remove files
 		unlink($jobs{$j}->{'file'},"$jobs{$j}->{'file'}.o$job_number","$jobs{$j}->{'file'}.e$job_number");
