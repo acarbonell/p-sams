@@ -966,7 +966,7 @@ sub pbs_jobs {
 		my ($fh, $filename) = tempfile($template, SUFFIX => '.sh', DIR => $tmpdir);
 		print <$fh>, '#!/bin/bash'."\n";
 		print <$fh>, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
-		close <$fh>;
+		close $fh;
 		$jobs{$j}->{'file'} = $filename;
 
 		# Submit job to queue
