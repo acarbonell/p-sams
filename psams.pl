@@ -7,7 +7,7 @@ use DBI;
 use FindBin qw($Bin);
 use HTML::Entities qw(decode_entities encode_entities);
 use File::Temp qw(tempfile);
-use constant DEBUG => 1;
+use constant DEBUG => 0;
 use Data::Dumper;
 
 ################################################################################
