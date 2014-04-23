@@ -27,7 +27,8 @@ our $mRNAdb = $conf->{$species}->{'mRNA'};
 our $db = $conf->{$species}->{'sql'};
 our $seed = 15;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
-our $execution_system = 'serial';
+#our $execution_system = 'serial';
+our $execution_system = 'pbs';
 
 # Connect to the SQLite database
 our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
