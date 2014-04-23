@@ -31,7 +31,8 @@ our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
 our $execution_system = 'pbs';
 
 # Connect to the SQLite database
-our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
+#our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
+our $dbh = DBI->connect("dbi:mysql:dbname=$db:host=agathon.ddpsc.org","gbrowse","ddp\$C_thaliana");
 
 ################################################################################
 # End variables
