@@ -971,6 +971,7 @@ sub pbs_jobs {
 		$jobs{$j}->{'file'} = $filename;
 
 		# Submit job to queue
+		print STDERR "qsub -o $tmpdir -e $tmpdir $filename\n" if DEBUG;
 		open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
 		my $job_id = <QSUB>;
 		chomp $job_id;
