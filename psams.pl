@@ -1096,6 +1096,7 @@ sub pbs_jobs {
 		}
 		$job = $end + 1;
 		print STDERR "done\n" if DEBUG;
+		last if ($result_count == 3);
 	}
 
 	return (\@opt, \@subopt);
