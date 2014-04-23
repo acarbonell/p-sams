@@ -205,8 +205,10 @@ sub build_fg_index {
 		$accession =~ s/\.\d+$//;
 
 		# Get transcript names
+		my $exists = 0;
 		$sth->execute("$accession%");
 		while (my $result = $sth->fetchrow_hashref) {
+			$exists = 1;
 			#$ids{$accession}->{$result->{'transcript'}} = '';
 			$ids{$result->{'transcript'}} = '';
 			open FASTA, "samtools faidx $mRNAdb $result->{'transcript'} |";
@@ -217,6 +219,10 @@ sub build_fg_index {
 				$ids{$result->{'transcript'}} .= $line;
 			}
 			close FASTA;
+		}
+		if ($exists == 0) {
+			print "Gene $accession not found in database! Please make sure your gene IDs are correct.\n";
+			exit 1;
 		}
 	}
 	print STDERR "done\n" if (DEBUG);
