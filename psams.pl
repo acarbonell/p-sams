@@ -1001,60 +1001,62 @@ sub pbs_jobs {
 					$remaining--;
 					my @tmp = split /\./, $jobs{$j}->{'job_id'};
 					my $job_number = $tmp[0];
-					open (TF, "$jobs{$j}->{'file'}.o$job_number") or die " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
+					open (TF, "$jobs{$j}->{'file'}.o$job_number") or warn " Cannot open file $jobs{$j}->{'file'}.o$job_number: $!\n";
 					my @tf_results = <TF>;
 					close TF;
 
 					# Off-targets
-					my $site = $gsites[$j];
-					my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
+					if (@tf_results) {
+						my $site = $gsites[$j];
+						my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
 
-					if ($fasta) {
-						# Add missing FASTA targets
-						my @insert;
-						my @seqs = split /;/, $site->{'seqs'};
-						my @names = split /;/, $site->{'names'};
-						for (my $i = 0; $i < scalar(@seqs); $i++) {
-							my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
-							push @insert, join("\n      ", @hit);
-						}
-						if ($off_targets == 0) {
-							@json = ();
-							push @json, '{';
-							push @json, '  "'.$construct.$result_count.'": {';
-							push @json, '    "hits": [';
-							push @json, join(",\n", @insert);
-							push @json, '    ]';
-							push @json, '  }';
-							push @json, '}';
+						if ($fasta) {
+							# Add missing FASTA targets
+							my @insert;
+							my @seqs = split /;/, $site->{'seqs'};
+							my @names = split /;/, $site->{'names'};
+							for (my $i = 0; $i < scalar(@seqs); $i++) {
+								my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+								push @insert, join("\n      ", @hit);
+							}
+							if ($off_targets == 0) {
+								@json = ();
+								push @json, '{';
+								push @json, '  "'.$construct.$result_count.'": {';
+								push @json, '    "hits": [';
+								push @json, join(",\n", @insert);
+								push @json, '    ]';
+								push @json, '  }';
+								push @json, '}';
+								$site->{'tf'} = \@json;
+								push @opt, $site;
+								$result_count++;
+							} else {
+								my @new_json;
+								for (my $i = 0; $i <= 2; $i++) {
+									push @new_json, $json[$i];
+								}
+								push @new_json, join(",\n", @insert).',';
+								for (my $i = 3; $i < scalar(@json); $i++) {
+									push @new_json, $json[$i];
+								}
+								$site->{'tf'} = \@new_json;
+								my %hash;
+								$hash{'off_targets'} = $off_targets;
+								$hash{'site'} = $site;
+								push @subopt, \%hash;
+							}
+						} else {
 							$site->{'tf'} = \@json;
-							push @opt, $site;
-							$result_count++;
-						} else {
-							my @new_json;
-							for (my $i = 0; $i <= 2; $i++) {
-								push @new_json, $json[$i];
+							if ($off_targets == 0 && $on_targets == $target_count) {
+								push @opt, $site;
+								$result_count++;
+							} else {
+								my %hash;
+								$hash{'off_targets'} = $off_targets;
+								$hash{'site'} = $site;
+								push @subopt, \%hash;
 							}
-							push @new_json, join(",\n", @insert).',';
-							for (my $i = 3; $i < scalar(@json); $i++) {
-								push @new_json, $json[$i];
-							}
-							$site->{'tf'} = \@new_json;
-							my %hash;
-							$hash{'off_targets'} = $off_targets;
-							$hash{'site'} = $site;
-							push @subopt, \%hash;
-						}
-					} else {
-						$site->{'tf'} = \@json;
-						if ($off_targets == 0 && $on_targets == $target_count) {
-							push @opt, $site;
-							$result_count++;
-						} else {
-							my %hash;
-							$hash{'off_targets'} = $off_targets;
-							$hash{'site'} = $site;
-							push @subopt, \%hash;
 						}
 					}
 				}
