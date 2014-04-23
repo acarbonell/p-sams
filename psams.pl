@@ -971,13 +971,16 @@ sub pbs_jobs {
 		$jobs{$j}->{'file'} = $filename;
 
 		# Submit job to queue
-		print STDERR "qsub -o $tmpdir -e $tmpdir $filename\n" if DEBUG;
 		open QSUB, "qsub -o $tmpdir -e $tmpdir $filename |";
 		my $job_id = <QSUB>;
-		chomp $job_id;
-		$jobs{$j}->{'job_id'} = $job_id;
-		$jobs{$j}->{'status'} = 'queued';
 		close QSUB;
+		if ($job_id) {
+			chomp $job_id;
+			$jobs{$j}->{'job_id'} = $job_id;
+			$jobs{$j}->{'status'} = 'queued';
+		} else {
+			$jobs{$j}->{'status'} = 'failed';
+		}
 	}
 
 	my $result_count = 0;
@@ -1052,6 +1055,9 @@ sub pbs_jobs {
 						}
 					}
 				}
+			} elsif ($jobs{$j}->{'status'} eq 'failed') {
+				$jobs{$j}->{'status'} = 'finished';
+				$remaining--;
 			}
 		}
 		last if ($result_count == 3);
