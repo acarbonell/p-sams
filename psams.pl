@@ -964,8 +964,8 @@ sub pbs_jobs {
 
 		# Open temporary shell script to define job
 		my ($fh, $filename) = tempfile($template, SUFFIX => '.sh', DIR => $tmpdir);
-		print <$fh>, '#!/bin/bash'."\n";
-		print <$fh>, "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
+		print $fh '#!/bin/bash'."\n";
+		print $fh "$targetfinder -s $site->{'guide'} -d $mRNAdb -q $site->{'name'} -p json\n";
 		close $fh;
 		$jobs{$j}->{'file'} = $filename;
 
