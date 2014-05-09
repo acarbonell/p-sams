@@ -60,6 +60,7 @@ if ($construct eq 'amiRNA') {
 	amirna_json($opt_count, $subopt_count, $opt_r, $sub_r);
 
 } elsif ($construct eq 'syntasiRNA') {
+	$construct = 'syn-tasiRNA';
 	my $bg = ($opt{'o'}) ? 1 : 0;
 	if ($fasta) {
 		my @fasta = split /;/, $fasta;
@@ -132,31 +133,8 @@ sub pipeline {
 		$opt_results{$opt_count}->{'oligo2'} = $site->{'oligo2'};
 		$opt_results{$opt_count}->{'tf'} = $site->{'tf'};
 	}
-	
-	
-	#print "{\n";
-	#print '  "optimal": {'."\n";
-	#
-	#my @json;
-	#foreach my $site (@{$opt}) {
-	#	@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
-	#
-	#	my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
-	#	$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
-	#	$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
-	#	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-	#	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-	#	$json .=   '    }';
-	#	push @json, $json;
-	#	$result_count++;
-	#}
-	#print join(",\n", @json)."\n";
-	#print '  },'."\n";
-	#print '  "suboptimal": {'."\n";
 
 	my $subopt_count = 0;
-	#@json = ();
 	foreach my $ssite (@{$subopt}) {
 		$subopt_count++;
 		$result_count++;
@@ -168,20 +146,8 @@ sub pipeline {
 		$subopt_results{$subopt_count}->{'oligo1'} = $site->{'oligo1'};
 		$subopt_results{$subopt_count}->{'oligo2'} = $site->{'oligo2'};
 		$subopt_results{$subopt_count}->{'tf'} = $site->{'tf'};
-
-		#my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
-		#$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
-		#$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
-		#$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-		#$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-		#$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-		#$json .=   '    }';
-		#push @json, $json;
 		last if ($subopt_count == 3);
 	}
-	#print join(",\n", @json)."\n";
-	#print '  }'."\n";
-	#print "}\n";
 	
 	return ($opt_count, $subopt_count, \%opt_results, \%subopt_results);
 }
@@ -772,6 +738,7 @@ sub base_pair {
 	my $name = shift;
 	my $transcript = shift;
 	my $guide = shift;
+	my $construct = shift;
 
 	my $start = index($transcript,$target);
 	if ($start == -1) {
@@ -872,7 +839,7 @@ sub base_pair {
 	push @hit, '        "Strand": "+",';
 	push @hit, '        "Target sequence": "'.$target.'",';
 	push @hit, '        "Base pairing": "'.$homology_string.'",';
-	push @hit, '        "amiRNA sequence": "'.$guide.'"';
+	push @hit, '        "'.$construct.' sequence": "'.$guide.'"';
 	push @hit, '      }';
 
 	return @hit;
@@ -924,6 +891,51 @@ sub amirna_json {
 	print "}\n";
 }
 
+########################################
+# Function: syntasirna_json
+# Builds the JSON output for syntasiRNA results
+########################################
+sub syntasirna_json {
+	my $opt_count = shift;
+	my $sub_count = shift;
+	my $opt = shift;
+	my $sub = shift;
+	
+	my $result_count = 0;
+	print "{\n";
+	print '  "optimal": {'."\n";
+	
+	my @json;
+	for (my $i = 1; $i <= $opt_count; $i++) {
+		$result_count++;
+		my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+		$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+		$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+		$json .=   '    }';
+		push @json, $json;
+	}
+	print join(",\n", @json)."\n";
+	print '  },'."\n";
+	print '  "suboptimal": {'."\n";
+	@json = ();
+	for (my $i = 1; $i <= $sub_count; $i++) {
+		$result_count++;
+		my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+		$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+		$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+		$json .=   '    }';
+		push @json, $json;
+	}
+	print join(",\n", @json)."\n";
+	print '  }'."\n";
+	print "}\n";
+}
 
 ########################################
 # Function: serial_jobs
@@ -955,7 +967,7 @@ sub serial_jobs {
 				my @seqs = split /;/, $site->{'seqs'};
 				my @names = split /;/, $site->{'names'};
 				for (my $i = 0; $i < scalar(@seqs); $i++) {
-					my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+					my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'}, $construct);
 					push @insert, join("\n      ", @hit);
 				}
 				if ($off_targets == 0) {
@@ -1002,7 +1014,7 @@ sub serial_jobs {
 			my @seqs = split /;/, $site->{'seqs'};
 			my @names = split /;/, $site->{'names'};
 			for (my $i = 0; $i < scalar(@seqs); $i++) {
-				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+				my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'}, $construct);
 				push @insert, join("\n      ", @hit);
 			}
 			my @json;
@@ -1111,7 +1123,7 @@ sub pbs_jobs {
 								my @seqs = split /;/, $site->{'seqs'};
 								my @names = split /;/, $site->{'names'};
 								for (my $i = 0; $i < scalar(@seqs); $i++) {
-									my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'});
+									my @hit = base_pair($seqs[$i], $names[$i], $ids->{$names[$i]}, $site->{'guide'}, $construct);
 									push @insert, join("\n      ", @hit);
 								}
 								if ($off_targets == 0) {
