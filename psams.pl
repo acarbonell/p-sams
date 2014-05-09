@@ -56,7 +56,8 @@ if ($construct eq 'amiRNA') {
 	}
 
 	# Run pipeline
-	pipeline($ids, $seed, $bg, $fb, $construct);
+	my ($opt_count, $subopt_count, $opt_r, $sub_r) = pipeline($ids, $seed, $bg, $fb, $construct);
+	amirna_json($opt_count, $subopt_count, $opt_r, $sub_r);
 
 } elsif ($construct eq 'syntasiRNA') {
 	my $bg = ($opt{'o'}) ? 1 : 0;
@@ -64,14 +65,14 @@ if ($construct eq 'amiRNA') {
 		my @fasta = split /;/, $fasta;
 		foreach my $group (@fasta) {
 			my $ids = build_fg_index_fasta($group);
-			pipeline($ids, $seed, $bg, $fb, $construct);
+			my ($opt_count, $subopt_count, $opt_r, $sub_r) = pipeline($ids, $seed, $bg, $fb, $construct);
 		}
 	} else {
 		my @groups = split /;/, $accession_list;
 		foreach my $group (@groups) {
 			my @accessions = parse_list(',', $group);
 			my $ids = build_fg_index(@accessions);
-			pipeline($ids, $seed, $bg, $fb, $construct);
+			my ($opt_count, $subopt_count, $opt_r, $sub_r) = pipeline($ids, $seed, $bg, $fb, $construct);
 		}
 	}
 } else {
@@ -97,6 +98,8 @@ sub pipeline {
 	my $bg = shift;
 	my $fb = shift;
 	my $construct = shift;
+	
+	my (%opt_results, %subopt_results);
 
 	# Find sites
 	my @t_sites = get_tsites($ids, $seed, $bg);
@@ -117,50 +120,70 @@ sub pipeline {
 
 	@{$subopt} = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @{$subopt};
 
-	my $result_count = 1;
-	print "{\n";
-	print '  "optimal": {'."\n";
-
-	my @json;
+	my $result_count = 0;
+	my $opt_count = 0;
 	foreach my $site (@{$opt}) {
-		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
-
-		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
-		$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
-		$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-		$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-		$json .=   '    }';
-		push @json, $json;
+		$opt_count++;
 		$result_count++;
+		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
+		$opt_results{$opt_count}->{'guide'} = $site->{'guide'};
+		$opt_results{$opt_count}->{'star'} = $site->{'star'};
+		$opt_results{$opt_count}->{'oligo1'} = $site->{'oligo1'};
+		$opt_results{$opt_count}->{'oligo2'} = $site->{'oligo2'};
+		$opt_results{$opt_count}->{'tf'} = $site->{'tf'};
 	}
-	print join(",\n", @json)."\n";
-	print '  },'."\n";
-	print '  "suboptimal": {'."\n";
+	
+	
+	#print "{\n";
+	#print '  "optimal": {'."\n";
+	#
+	#my @json;
+	#foreach my $site (@{$opt}) {
+	#	@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
+	#
+	#	my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
+	#	$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
+	#	$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
+	#	$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+	#	$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
+	#	$json .=   '    }';
+	#	push @json, $json;
+	#	$result_count++;
+	#}
+	#print join(",\n", @json)."\n";
+	#print '  },'."\n";
+	#print '  "suboptimal": {'."\n";
 
-	my $result = 1;
-	@json = ();
+	my $subopt_count = 0;
+	#@json = ();
 	foreach my $ssite (@{$subopt}) {
+		$subopt_count++;
+		$result_count++;
 		my $site = \%{$ssite->{'site'}};
 
 		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
+		$subopt_results{$subopt_count}->{'guide'} = $site->{'guide'};
+		$subopt_results{$subopt_count}->{'star'} = $site->{'star'};
+		$subopt_results{$subopt_count}->{'oligo1'} = $site->{'oligo1'};
+		$subopt_results{$subopt_count}->{'oligo2'} = $site->{'oligo2'};
+		$subopt_results{$subopt_count}->{'tf'} = $site->{'tf'};
 
-		my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
-		$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
-		$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
-		$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
-		$json .=   '    }';
-		push @json, $json;
-		last if ($result == 3);
-		$result++;
-		$result_count++;
+		#my $json = '    "'.$construct.' Result '.$result_count.'": {'."\n";
+		#$json .=   '      "'.$construct.'": "'.$site->{'guide'}.'",'."\n";
+		#$json .=   '      "'.$construct.'*": "'.$site->{'star'}.'",'."\n";
+		#$json .=   '      "oligo1": "'.$site->{'oligo1'}.'",'."\n";
+		#$json .=   '      "oligo2": "'.$site->{'oligo2'}.'",'."\n";
+		#$json .=   '      "TargetFinder": '.join("\n      ", @{$site->{'tf'}})."\n";
+		#$json .=   '    }';
+		#push @json, $json;
+		last if ($subopt_count == 3);
 	}
-	print join(",\n", @json)."\n";
-	print '  }'."\n";
-	print "}\n";
+	#print join(",\n", @json)."\n";
+	#print '  }'."\n";
+	#print "}\n";
+	
+	return ($opt_count, $subopt_count, \%opt_results, \%subopt_results);
 }
 
 ########################################
@@ -854,6 +877,50 @@ sub base_pair {
 
 	return @hit;
 }
+
+########################################
+# Function: amirna_json
+# Builds the JSON output for amiRNA results
+########################################
+sub amirna_json {
+	my $opt_count = shift;
+	my $sub_count = shift;
+	my $opt = shift;
+	my $sub = shift;
+	
+	print "{\n";
+	print '  "optimal": {'."\n";
+	
+	my @json;
+	for (my $i = 1; $i <= $opt_count; $i++) {
+		my $json = '    "amiRNA Result '.$i.'": {'."\n";
+		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+		$json .=   '    }';
+		push @json, $json;
+	}
+	print join(",\n", @json)."\n";
+	print '  },'."\n";
+	print '  "suboptimal": {'."\n";
+	@json = ();
+	for (my $i = 1; $i <= $sub_count; $i++) {
+		my $json = '    "amiRNA Result '.$i.'": {'."\n";
+		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+		$json .=   '    }';
+		push @json, $json;
+	}
+	print join(",\n", @json)."\n";
+	print '  }'."\n";
+	print "}\n";
+}
+
 
 ########################################
 # Function: serial_jobs
