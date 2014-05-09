@@ -888,12 +888,14 @@ sub amirna_json {
 	my $opt = shift;
 	my $sub = shift;
 	
+	my $result_count = 0;
 	print "{\n";
 	print '  "optimal": {'."\n";
 	
 	my @json;
 	for (my $i = 1; $i <= $opt_count; $i++) {
-		my $json = '    "amiRNA Result '.$i.'": {'."\n";
+		$result_count++;
+		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
 		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
 		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
 		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
@@ -907,7 +909,8 @@ sub amirna_json {
 	print '  "suboptimal": {'."\n";
 	@json = ();
 	for (my $i = 1; $i <= $sub_count; $i++) {
-		my $json = '    "amiRNA Result '.$i.'": {'."\n";
+		$result_count++;
+		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
 		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
 		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
 		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
@@ -1255,7 +1258,7 @@ Plant Small RNA Maker Suite (P-SAMS).
   Artificial microRNA and synthetic trans-acting siRNA designer tool.
 
 arguments:
-  -t FOLDBACK           Foldback type [eudicot]. Default = eudicot.
+  -t FOLDBACK           Foldback type [eudicot, monocot]. Default = eudicot.
   -f FASTA              FASTA-formatted sequence. Not used if -a is set.
   -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
   -s SPECIES            Species. Required if -a is set.
