@@ -62,20 +62,38 @@ if ($construct eq 'amiRNA') {
 } elsif ($construct eq 'syntasiRNA') {
 	$construct = 'syn-tasiRNA';
 	my $bg = ($opt{'o'}) ? 1 : 0;
+	my (%groups, $count);
 	if ($fasta) {
 		my @fasta = split /;/, $fasta;
-		foreach my $group (@fasta) {
-			my $ids = build_fg_index_fasta($group);
+		$count = scalar(@fasta);
+		for (my $g = 0; $g < $count; $g++) {
+		#foreach my $group (@fasta) {
+			#my $ids = build_fg_index_fasta($group);
+			my $ids = build_fg_index_fasta($fasta[$g]);
 			my ($opt_count, $subopt_count, $opt_r, $sub_r) = pipeline($ids, $seed, $bg, $fb, $construct);
+			$groups{$g}->{'opt'} = $opt_count;
+			$groups{$g}->{'sub'} = $subopt_count;
+			$groups{$g}->{'opt_r'} = $opt_r;
+			$groups{$g}->{'sub_r'} = $sub_r;
+			#syntasirna_json($opt_count, $subopt_count, $opt_r, $sub_r);
 		}
 	} else {
 		my @groups = split /;/, $accession_list;
-		foreach my $group (@groups) {
-			my @accessions = parse_list(',', $group);
+		$count = scalar(@groups);
+		for (my $g = 0; $g < $count; $g++) {
+		#foreach my $group (@groups) {
+			#my @accessions = parse_list(',', $group);
+			my @accessions = parse_list(',', $groups[$g]);
 			my $ids = build_fg_index(@accessions);
 			my ($opt_count, $subopt_count, $opt_r, $sub_r) = pipeline($ids, $seed, $bg, $fb, $construct);
+			$groups{$g}->{'opt'} = $opt_count;
+			$groups{$g}->{'sub'} = $subopt_count;
+			$groups{$g}->{'opt_r'} = $opt_r;
+			$groups{$g}->{'sub_r'} = $sub_r;
+			#syntasirna_json($opt_count, $subopt_count, $opt_r, $sub_r);
 		}
 	}
+	syntasiRNA_json($count, \%groups);
 } else {
 	arg_error("Construct type $construct is not supported!");
 }
@@ -896,43 +914,55 @@ sub amirna_json {
 # Builds the JSON output for syntasiRNA results
 ########################################
 sub syntasirna_json {
-	my $opt_count = shift;
-	my $sub_count = shift;
-	my $opt = shift;
-	my $sub = shift;
+	my $group_count = shift;
+	my $groups = shift;
+	
+	#$groups{$g}->{'opt'} = $opt_count;
+	#$groups{$g}->{'sub'} = $subopt_count;
+	#$groups{$g}->{'opt_r'} = $opt_r;
+	#$groups{$g}->{'sub_r'} = $sub_r;
+	
+	my (%opt, %sub);
+	for (my $r = 1; $r <= 3; $r++) {
+		for (my $g = 0; $g < $group_count; $g++) {
+			my $opt_count = $groups->{$g}->{'opt'};
+			my $sub_count = $groups->{$g}->{'sub'};
+			$opt{$g}->{'opt'} = $groups->{$g}->{'opt'};
+		}
+	}
 	
 	my $result_count = 0;
 	print "{\n";
 	print '  "optimal": {'."\n";
 	
-	my @json;
-	for (my $i = 1; $i <= $opt_count; $i++) {
-		$result_count++;
-		my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
-		$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
-		$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
-		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
-		$json .=   '    }';
-		push @json, $json;
-	}
-	print join(",\n", @json)."\n";
-	print '  },'."\n";
-	print '  "suboptimal": {'."\n";
-	@json = ();
-	for (my $i = 1; $i <= $sub_count; $i++) {
-		$result_count++;
-		my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
-		$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
-		$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
-		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
-		$json .=   '    }';
-		push @json, $json;
-	}
-	print join(",\n", @json)."\n";
+	#my @json;
+	#for (my $i = 1; $i <= $opt_count; $i++) {
+	#	$result_count++;
+	#	my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+	#	$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+	#	$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+	#	$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+	#	$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+	#	$json .=   '    }';
+	#	push @json, $json;
+	#}
+	#print join(",\n", @json)."\n";
+	#print '  },'."\n";
+	#print '  "suboptimal": {'."\n";
+	#@json = ();
+	#for (my $i = 1; $i <= $sub_count; $i++) {
+	#	$result_count++;
+	#	my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+	#	$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
+	#	$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
+	#	$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+	#	$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+	#	$json .=   '    }';
+	#	push @json, $json;
+	#}
+	#print join(",\n", @json)."\n";
 	print '  }'."\n";
 	print "}\n";
 }
