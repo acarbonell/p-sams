@@ -880,7 +880,7 @@ sub amirna_json {
 	my @json;
 	for (my $i = 1; $i <= $opt_count; $i++) {
 		$result_count++;
-		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
+		my $json = '    "amiRNA Optimal Result '.$result_count.'": {'."\n";
 		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
 		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
 		$json .=   '      "Forward Oligo": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
@@ -893,9 +893,10 @@ sub amirna_json {
 	print '  },'."\n";
 	print '  "suboptimal": {'."\n";
 	@json = ();
+	$result_count = 0;
 	for (my $i = 1; $i <= $sub_count; $i++) {
 		$result_count++;
-		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
+		my $json = '    "amiRNA Suboptimal Result '.$result_count.'": {'."\n";
 		$json .=   '      "amiRNA": "'.$sub->{$i}->{'guide'}.'",'."\n";
 		$json .=   '      "amiRNA*": "'.$sub->{$i}->{'star'}.'",'."\n";
 		$json .=   '      "Forward Oligo": "'.$sub->{$i}->{'oligo1'}.'",'."\n";
