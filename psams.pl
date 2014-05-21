@@ -144,7 +144,7 @@ sub pipeline {
 	foreach my $site (@{$opt}) {
 		$opt_count++;
 		$result_count++;
-		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
+		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Optimal Result $result_count/;
 		$opt_results{$opt_count}->{'guide'} = $site->{'guide'};
 		$opt_results{$opt_count}->{'star'} = $site->{'star'};
 		$opt_results{$opt_count}->{'oligo1'} = $site->{'oligo1'};
@@ -152,13 +152,14 @@ sub pipeline {
 		$opt_results{$opt_count}->{'tf'} = $site->{'tf'};
 	}
 
+	$result_count = 0;
 	my $subopt_count = 0;
 	foreach my $ssite (@{$subopt}) {
 		$subopt_count++;
 		$result_count++;
 		my $site = \%{$ssite->{'site'}};
 
-		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Result $result_count/;
+		@{$site->{'tf'}}[1] =~ s/$construct\d+/$construct Suboptimal Result $result_count/;
 		$subopt_results{$subopt_count}->{'guide'} = $site->{'guide'};
 		$subopt_results{$subopt_count}->{'star'} = $site->{'star'};
 		$subopt_results{$subopt_count}->{'oligo1'} = $site->{'oligo1'};
