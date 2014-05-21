@@ -883,8 +883,8 @@ sub amirna_json {
 		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
 		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
 		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "Forward Oligo": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "Reverse Oligo": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
 		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
 		$json .=   '    }';
 		push @json, $json;
@@ -896,11 +896,11 @@ sub amirna_json {
 	for (my $i = 1; $i <= $sub_count; $i++) {
 		$result_count++;
 		my $json = '    "amiRNA Result '.$result_count.'": {'."\n";
-		$json .=   '      "amiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
-		$json .=   '      "amiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-		$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-		$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
-		$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+		$json .=   '      "amiRNA": "'.$sub->{$i}->{'guide'}.'",'."\n";
+		$json .=   '      "amiRNA*": "'.$sub->{$i}->{'star'}.'",'."\n";
+		$json .=   '      "Forward Oligo": "'.$sub->{$i}->{'oligo1'}.'",'."\n";
+		$json .=   '      "Reverse Oligo": "'.$sub->{$i}->{'oligo2'}.'",'."\n";
+		$json .=   '      "TargetFinder": '.join("\n      ", @{$sub->{$i}->{'tf'}})."\n";
 		$json .=   '    }';
 		push @json, $json;
 	}
