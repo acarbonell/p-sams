@@ -38,6 +38,7 @@ while (my $line = <FASTA>) {
     }
     # Kmerize
     my $length = length($seq);
+		$seq = uc($seq);
     for (my $i = 0; $i <= $length - $site_length; $i++) {
       my $kmer = substr(substr($seq,$i,$site_length),$offset,$ksize);
       $kmers{$kmer}->{$transcript} = 1;
