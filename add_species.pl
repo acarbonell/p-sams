@@ -33,7 +33,7 @@ while (my $line = <FASTA>) {
       $count++;
       next;
     }
-    if (eof($line)) {
+    if (eof(FASTA)) {
       $seq .= $line;
     }
     # Kmerize
