@@ -999,7 +999,7 @@ sub syntasirna_json {
 				my $target;
 				my $d = 3 + $g;
 				$target .= '        "syn-tasiRNA-D'.$d.' Targets": {'."\n";
-				$target .= '        '.join("\n      ", @{$opt{$g}->{$i}->{'tf'}})."\n";
+				$target .= '      '.join("\n      ", @{$opt{$g}->{$i}->{'tf'}})."\n";
 				$target .= '        }';
 				push @targets, $target;
 			}
