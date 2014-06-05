@@ -998,12 +998,12 @@ sub syntasirna_json {
 				
 				my $target;
 				my $d = 3 + $g;
-				$target .= '        "syn-tasiRNA-D'.$d.' Targets": {'."\n";
+				$target .= '"syn-tasiRNA-D'.$d.' Targets": {'."\n";
 				$target .= '      '.join("\n      ", @{$opt{$g}->{$i}->{'tf'}})."\n";
 				$target .= '        }';
 				push @targets, $target;
 			}
-			$json .=   join(",\n        ", @targets)."\n";
+			$json .=   '        '.join(",\n        ", @targets)."\n";
 			$json .=   '      }';
 			push @json, $json;
 		}
