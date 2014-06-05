@@ -93,7 +93,7 @@ if ($construct eq 'amiRNA') {
 			#syntasirna_json($opt_count, $subopt_count, $opt_r, $sub_r);
 		}
 	}
-	syntasiRNA_json($count, \%groups);
+	syntasirna_json($count, \%groups);
 } else {
 	arg_error("Construct type $construct is not supported!");
 }
