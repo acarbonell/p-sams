@@ -1003,8 +1003,8 @@ sub syntasirna_json {
 				$target .= '        }';
 				push @targets, $target;
 			}
-			$json .=   '        '.join(",\n        ", @targets)."\n";
-			$json .=   '      }'."\n";
+			$json .=   join(",\n        ", @targets)."\n";
+			$json .=   '      }';
 			push @json, $json;
 		}
 		print join(",\n", @json)."\n";
