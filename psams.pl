@@ -1005,7 +1005,9 @@ sub syntasirna_json {
 			}
 			$json .=   '        '.join(",\n        ", @targets)."\n";
 			$json .=   '      }'."\n";
+			push @json, $json;
 		}
+		print join(",\n", @json)."\n";
 	}
 	print '  },'."\n";
 	print '  "suboptimal": {'."\n";
