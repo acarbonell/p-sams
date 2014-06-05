@@ -749,6 +749,40 @@ sub oligo_designer {
 }
 
 ########################################
+# Function: syntasi_oligo_designer
+# Generates cloning oligonucleotide sequences
+########################################
+sub syntasi_oligo_designer {
+	my @guides = @_;
+
+	my $bsa1 = "ATTA";
+  my $bsa2 = "GTTC";
+	
+	my (@stars, $string);
+	
+	foreach my $guide (@guides) {
+		$string .= $guide;
+	}
+	
+	my $oligo1 = $bsa1.$string;
+	
+	# Define syn-tasiRNA* sequences
+	for (my $g = 0; $g < scalar(@guides); $g++) {
+		my $offset = 2 + (21 * $g);
+		my $star = substr($oligo1,$offset,21);
+		$star = reverse($star);
+		$star =~ tr/ATGC/TACG/;
+		push @stars, $star;
+	}
+
+	my $oligo2 = reverse($string);
+	$oligo2 =~ tr/ATGC/TACG/;
+	$oligo2 = $bsa2.$oligo2;
+
+	return (join(',', @stars), $oligo1, $oligo2);
+}
+
+########################################
 # Function: parse_list
 # Parses deliminated lists into an array
 ########################################
@@ -925,27 +959,65 @@ sub syntasirna_json {
 	#$groups{$g}->{'sub_r'} = $sub_r;
 	
 	my (%opt, %sub);
-	for (my $r = 1; $r <= 3; $r++) {
-		for (my $g = 0; $g < $group_count; $g++) {
-			my $opt_count = $groups->{$g}->{'opt'};
-			my $sub_count = $groups->{$g}->{'sub'};
-			$opt{$g}->{'opt'} = $groups->{$g}->{'opt'};
-		}
-	}
-	
-	my $result_count = 0;
 	print "{\n";
 	print '  "optimal": {'."\n";
+	# How many optimal results can we get, up to 3
+	my $min_opt_results = 3;
+	for (my $g = 0; $g < $group_count; $g++) {
+		if ($groups->{$g}->{'opt'} < 3 && $groups->{$g}->{'opt'} < $min_opt_results) {
+			$min_opt_results = $groups->{$g}->{'opt'};
+		}
+		$opt{$g} = $groups->{$g}->{'opt_r'};
+	}
+	my $result_count = 0;
+	if ($min_opt_results > 0) {
+		my @json;
+		for (my $i = 1; $i <= $min_opt_results; $i++) {
+			$result_count++;
+			my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+			my @guides;
+			for (my $g = 0; $g < $group_count; $g++) {
+				push @guides, $opt{$g}->{$i}->{'guide'};
+			}
+			my ($stars, $oligo1, $oligo2) = syntasi_oligo_designer(@guides);
+			my @stars = split /,/, $stars;
+			for (my $g = 0; $g < $group_count; $g++) {
+				my $d = 3 + $g;
+				$json .=   '      "syn-tasiRNA-D'.$d.'": "'.$opt{$g}->{$i}->{'guide'}.'",'."\n";
+				$json .=   '      "syn-tasiRNA-D'.$d.'*": "'.$opt{$g}->{$i}->{'star'}.'",'."\n";
+			}
+			$json .=   '      "Forward Oligo": "'.$oligo1.'",'."\n";
+			$json .=   '      "Reverse Oligo": "'.$oligo2.'",'."\n";
+			$json .=   '      "TargetFinder": {'."\n";
+			my @targets;
+			for (my $g = 0; $g < $group_count; $g++) {
+				shift(@{$opt{$g}->{$i}->{'tf'}});
+				shift(@{$opt{$g}->{$i}->{'tf'}});
+				pop(@{$opt{$g}->{$i}->{'tf'}});
+				pop(@{$opt{$g}->{$i}->{'tf'}});
+				
+				my $target;
+				my $d = 3 + $g;
+				$target .= '        "syn-tasiRNA-D'.$d.' Targets": {'."\n";
+				$target .= '          '.join("\n        ", @{$opt{$g}->{$i}->{'tf'}})."\n";
+				$target .= '        }';
+				push @targets, $target;
+			}
+			$json .=   '        '.join(",\n        ", @targets)."\n";
+			$json .=   '      }'."\n";
+		}
+	}
+	print '  },'."\n";
+	print '  "suboptimal": {'."\n";
+	
+	
+	#my $sub_count = $groups->{$g}->{'sub'};
 	
 	#my @json;
 	#for (my $i = 1; $i <= $opt_count; $i++) {
 	#	$result_count++;
-	#	my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
-	#	$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
-	#	$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-	#	$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-	#	$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
-	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
+
+	#	
 	#	$json .=   '    }';
 	#	push @json, $json;
 	#}
