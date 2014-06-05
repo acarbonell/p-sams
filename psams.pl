@@ -1004,7 +1004,8 @@ sub syntasirna_json {
 				push @targets, $target;
 			}
 			$json .=   '        '.join(",\n        ", @targets)."\n";
-			$json .=   '      }';
+			$json .=   '      }'."\n";
+			$json .=   '    }';
 			push @json, $json;
 		}
 		print join(",\n", @json)."\n";
