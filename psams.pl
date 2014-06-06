@@ -1012,34 +1012,55 @@ sub syntasirna_json {
 	}
 	print '  },'."\n";
 	print '  "suboptimal": {'."\n";
-	
-	
-	#my $sub_count = $groups->{$g}->{'sub'};
-	
-	#my @json;
-	#for (my $i = 1; $i <= $opt_count; $i++) {
-	#	$result_count++;
-
-	#	
-	#	$json .=   '    }';
-	#	push @json, $json;
-	#}
-	#print join(",\n", @json)."\n";
-	#print '  },'."\n";
-	#print '  "suboptimal": {'."\n";
-	#@json = ();
-	#for (my $i = 1; $i <= $sub_count; $i++) {
-	#	$result_count++;
-	#	my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
-	#	$json .=   '      "syn-tasiRNA": "'.$opt->{$i}->{'guide'}.'",'."\n";
-	#	$json .=   '      "syn-tasiRNA*": "'.$opt->{$i}->{'star'}.'",'."\n";
-	#	$json .=   '      "oligo1": "'.$opt->{$i}->{'oligo1'}.'",'."\n";
-	#	$json .=   '      "oligo2": "'.$opt->{$i}->{'oligo2'}.'",'."\n";
-	#	$json .=   '      "TargetFinder": '.join("\n      ", @{$opt->{$i}->{'tf'}})."\n";
-	#	$json .=   '    }';
-	#	push @json, $json;
-	#}
-	#print join(",\n", @json)."\n";
+	# How many suboptimal results can we get, up to 3
+	my $min_sub_results = 3;
+	for (my $g = 0; $g < $group_count; $g++) {
+		if ($groups->{$g}->{'sub'} < 3 && $groups->{$g}->{'sub'} < $min_sub_results) {
+			$min_sub_results = $groups->{$g}->{'sub'};
+		}
+		$sub{$g} = $groups->{$g}->{'sub_r'};
+	}
+	$result_count = 0;
+	if ($min_opt_results > 0) {
+		my @json;
+		for (my $i = 1; $i <= $min_sub_results; $i++) {
+			$result_count++;
+			my $json = '    "syn-tasiRNA Result '.$result_count.'": {'."\n";
+			my @guides;
+			for (my $g = 0; $g < $group_count; $g++) {
+				push @guides, $sub{$g}->{$i}->{'guide'};
+			}
+			my ($stars, $oligo1, $oligo2) = syntasi_oligo_designer(@guides);
+			my @stars = split /,/, $stars;
+			for (my $g = 0; $g < $group_count; $g++) {
+				my $d = 3 + $g;
+				$json .=   '      "syn-tasiRNA-D'.$d.'": "'.$sub{$g}->{$i}->{'guide'}.'",'."\n";
+				$json .=   '      "syn-tasiRNA-D'.$d.'*": "'.$sub{$g}->{$i}->{'star'}.'",'."\n";
+			}
+			$json .=   '      "Forward Oligo": "'.$oligo1.'",'."\n";
+			$json .=   '      "Reverse Oligo": "'.$oligo2.'",'."\n";
+			$json .=   '      "TargetFinder": {'."\n";
+			my @targets;
+			for (my $g = 0; $g < $group_count; $g++) {
+				shift(@{$sub{$g}->{$i}->{'tf'}});
+				shift(@{$sub{$g}->{$i}->{'tf'}});
+				pop(@{$sub{$g}->{$i}->{'tf'}});
+				pop(@{$sub{$g}->{$i}->{'tf'}});
+				
+				my $target;
+				my $d = 3 + $g;
+				$target .= '"syn-tasiRNA-D'.$d.' Targets": {'."\n";
+				$target .= '      '.join("\n      ", @{$sub{$g}->{$i}->{'tf'}})."\n";
+				$target .= '        }';
+				push @targets, $target;
+			}
+			$json .=   '        '.join(",\n        ", @targets)."\n";
+			$json .=   '      }'."\n";
+			$json .=   '    }';
+			push @json, $json;
+		}
+		print join(",\n", @json)."\n";
+	}
 	print '  }'."\n";
 	print "}\n";
 }
