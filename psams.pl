@@ -996,7 +996,7 @@ sub syntasirna_json {
 			shift(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
-			print '            '.join("\n        ", @{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}})."\n";
+			print '        '.join("\n        ", @{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}})."\n";
 			print '          }'."\n";
 			if ($s < $groups->{$g}->{'sub'}) {
 				print '        },'."\n";
