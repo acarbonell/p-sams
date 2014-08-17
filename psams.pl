@@ -975,8 +975,13 @@ sub syntasirna_json {
 			shift(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
 			pop(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
 			pop(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
-			print '            '.join("\n        ", @{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}})."\n";
-			print '          }'."\n";
+			print '        '.join("\n        ", @{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}})."\n";
+			if ($o < $groups->{$g}->{'opt'}) {
+				print '          },'."\n";
+			} else {
+				print '          }'."\n";
+			}
+			print '      }'."\n";
 		}
 		
 		print '      },'."\n";
@@ -991,6 +996,11 @@ sub syntasirna_json {
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			print '            '.join("\n        ", @{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}})."\n";
+			if ($s < $groups->{$g}->{'sub'}) {
+				print '          },'."\n";
+			} else {
+				print '          }'."\n";
+			}
 			print '          }'."\n";
 		}
 		
