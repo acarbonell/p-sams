@@ -969,7 +969,7 @@ sub syntasirna_json {
 		print '      "optimal": {'."\n";
 		
 		for (my $o = 1; $o <= $groups->{$g}->{'opt'}; $o++) {
-			print '        "optimal '.$g.'.'.$o.'": {'."\n";
+			print '        "optimal '.$set.'.'.$o.'": {'."\n";
 			print '          "syn-tasiRNA": "'.$groups->{$g}->{'opt_r'}->{$o}->{'guide'}.'",'."\n";
 			print '          "TargetFinder": {'."\n";
 			shift(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
@@ -989,7 +989,7 @@ sub syntasirna_json {
 		print '      "suboptimal": {'."\n";
 		
 		for (my $s = 1; $s <= $groups->{$g}->{'sub'}; $s++) {
-			print '        "suboptimal '.$g.'.'.$s.'": {'."\n";
+			print '        "suboptimal '.$set.'.'.$s.'": {'."\n";
 			print '          "syn-tasiRNA": "'.$groups->{$g}->{'sub_r'}->{$s}->{'guide'}.'",'."\n";
 			print '          "TargetFinder": {'."\n";
 			shift(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
