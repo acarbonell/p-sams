@@ -962,9 +962,10 @@ sub syntasirna_json {
 	print '{'."\n";
 	print '  "blocks": ['."\n";
 	
-	for (my $g = 1; $g <= $group_count; $g++) {
+	my $set = 1;
+	for (my $g = 0; $g < $group_count; $g++) {
 		print '    {'."\n";
-		print '      "name": "Gene set '.$g.'",'."\n";
+		print '      "name": "Gene set '.$set.'",'."\n";
 		print '      "optimal": {'."\n";
 		
 		for (my $o = 1; $o <= $groups->{$g}->{'opt'}; $o++) {
@@ -1005,11 +1006,12 @@ sub syntasirna_json {
 		}
 		
 		print '      }'."\n";
-		if ($g < $group_count) {
+		if ($g < $group_count - 1) {
 			print '    },'."\n";
 		} else {
 			print '    }'."\n";
 		}
+		$set++;
 	}
 	
 	print '  ]'."\n";
