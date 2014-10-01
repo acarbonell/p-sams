@@ -82,7 +82,7 @@ sub oligo_designer {
     my $oligo_f = $amiRNA.'ATGATGATCACATTCGTTATCTATTTTTT'.$duplex_seq;
     # Reverse oligo
     my $oligo_r = reverse $oligo_f;
-    $oligo_r = tr/ATGC/TACG/;
+    $oligo_r =~ tr/ATGC/TACG/;
     # Define amiRNA*
     my $amiRNAstar = substr($duplex_seq, 2, 20).'CA';
     # Add bsaI overhangs
