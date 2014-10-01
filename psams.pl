@@ -263,6 +263,7 @@ sub get_tsites {
 		print STDERR "  Transcript $transcript is $length nt long\n" if (DEBUG);
 		for (my $i = 0; $i <= $length - $site_length; $i++) {
 			my $site = substr($seq,$i,$site_length);
+			next if (length($site) < $site_length);
 			my $kmer = substr($site,$offset,$seed);
 			if ($bg) {
 				my $is_bg = 0;
