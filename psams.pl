@@ -140,7 +140,9 @@ sub pipeline {
 	}
 
 	@{$subopt} = sort {$a->{'off_targets'} <=> $b->{'off_targets'}} @{$subopt};
-
+	
+	print STDERR Dumper($opt) if (DEBUG);
+	
 	my $result_count = 0;
 	my $opt_count = 0;
 	foreach my $site (@{$opt}) {
