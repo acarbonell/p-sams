@@ -1202,7 +1202,7 @@ sub pbs_jobs {
 						# Off-targets
 						if (@tf_results) {
 							# Skip empty results
-							next if ($tf_results[0] =~ /No results/);
+							next if ($tf_results[0] =~ /No results/ && !$fasta);
 							my $site = $gsites[$j];
 							my ($off_targets, $on_targets, @json) = off_target_check($site, @tf_results);
 
