@@ -525,6 +525,7 @@ sub score_sites {
 		}
 
 		my $guide = design_guide_RNA($site);
+		next if (length($guide) < $site_length);
 		$site->{'guide'} = $guide;
 		my ($star, $oligo1, $oligo2) = oligo_designer($site->{'guide'}, $fb);
 		$site->{'star'} = $star;
