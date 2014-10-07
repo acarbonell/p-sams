@@ -128,6 +128,7 @@ sub pipeline {
 
 	# Scoring sites
 	my $target_count = scalar(keys(%{$ids}));
+	print STDERR "Expected target count = $target_count\n" if (DEBUG);
 	@gsites = score_sites($target_count, $seed, $fb, @gsites);
 
 	my ($opt, $subopt);
