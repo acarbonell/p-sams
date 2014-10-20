@@ -225,7 +225,7 @@ sub build_fg_index {
 			$exists = 1;
 			#$ids{$accession}->{$result->{'transcript'}} = '';
 			$ids{$result->{'transcript'}} = '';
-			open FASTA, "samtools faidx $mRNAdb $result->{'transcript'} |";
+			open FASTA, "/nfs4shares/bioinfosw/bin/samtools faidx $mRNAdb $result->{'transcript'} |";
 			while (my $line = <FASTA>) {
 				next if (substr($line,0,1) eq '>');
 				chomp $line;
