@@ -62,7 +62,7 @@ sub oligo_designer {
 	for (my $i = 0; $i < scalar(@syntasiRNAs); $i++) {
 		push @pairs, '"'.$names[$i].'": "'.$syntasiRNAs[$i].'"';
 	}
-	my $json = '{"results": {"syntasiRNA:" [{';
+	my $json = '{"results": {"syntasiRNA": [{';
 	$json .= join('},{', @pairs);
 	$json .= '}], "Forward Oligo": "'.$oligo_f.'", "Reverse Oligo": "'.$oligo_r.'"}}';
 
