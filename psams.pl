@@ -982,7 +982,9 @@ sub syntasirna_json {
 			shift(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
 			pop(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
 			pop(@{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}});
-			print '        '.join("\n        ", @{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}})."\n";
+			my $tf_obj = '        '.join("\n        ", @{$groups->{$g}->{'opt_r'}->{$o}->{'tf'}})."\n";
+			$tf_obj =~ s/amiRNA/syn-tasiRNA/g;
+			print $tf_obj;
 			print '          }'."\n";
 			if ($o < $groups->{$g}->{'opt'}) {
 				print '        },'."\n";
@@ -1002,7 +1004,9 @@ sub syntasirna_json {
 			shift(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
 			pop(@{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}});
-			print '        '.join("\n        ", @{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}})."\n";
+			my $tf_obj = '        '.join("\n        ", @{$groups->{$g}->{'sub_r'}->{$s}->{'tf'}})."\n";
+			$tf_obj =~ s/amiRNA/syn-tasiRNA/g;
+			print $tf_obj;
 			print '          }'."\n";
 			if ($s < $groups->{$g}->{'sub'}) {
 				print '        },'."\n";
