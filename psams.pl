@@ -25,13 +25,15 @@ our $tmpdir = "$Bin/../tmp";
 our $conf = Config::Tiny->read($conf_file);
 our $seed = 15;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
-our ($mRNAdb, $db, $dbh);
+our ($mRNAdb, $db, $dbh, $db_host, $db_usr, $db_passwd);
 if ($species) {
 	$mRNAdb = $conf->{$species}->{'mRNA'};
 	$db = $conf->{$species}->{'sql'};
 	# Connect to the SQLite database
-	#our $dbh = DBI->connect("dbi:SQLite:dbname=$db","","");
-	$dbh = DBI->connect("dbi:mysql:dbname=$db:host=agathon.ddpsc.org","gbrowse","ddp\$C_thaliana");
+	$db_host = $conf->{'DATABASE'}->{'host'};
+	$db_usr = $conf->{'DATABASE'}->{'user'};
+	$db_passwd = $conf->{'DATABASE'}->{'password'};
+	$dbh = DBI->connect("dbi:mysql:dbname=$db:host=$db_host", $db_usr, $db_passwd);
 }
 #our $execution_system = 'serial';
 our $execution_system = 'pbs';
