@@ -218,7 +218,19 @@ sub build_fg_index {
 	my $sth = $dbh->prepare("SELECT * FROM `annotation` WHERE `transcript` LIKE ?");
 	foreach my $accession (@accessions) {
 		# If the user entered transcript IDs we need to convert to gene IDs
+		# For most species remove the isoform number (dot + one or two digits)
 		$accession =~ s/\.\d{1,2}$//;
+		# For maize isoforms are named differently
+		if ($species eq 'Z_MAYS') {
+			# There is a set where the transcript is named FGT### and the gene is named FG###
+			if (substr($accession, 0, 2) eq 'AC') {
+				$accession =~ s/FGT/FG/;
+			} else {
+				# Most isoforms are named _T##
+				$accession =~ s/_T\d{2}$//;	
+			}
+		}
+		
 
 		# Get transcript names
 		my $exists = 0;
