@@ -232,7 +232,7 @@ sub build_fg_index {
 			}
 		}
 		
-		if (length($accession < $min_length)) {
+		if (length($accession) < $min_length) {
 			print "Gene $accession not found in database! Please make sure your gene IDs are correct.\n";
 			exit 1;
 		}
