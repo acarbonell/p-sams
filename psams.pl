@@ -24,6 +24,7 @@ our $targetfinder = "$Bin/targetfinder.pl";
 our $tmpdir = "$Bin/../tmp";
 our $conf = Config::Tiny->read($conf_file);
 our $seed = 15;
+our $min_length = 9;
 our $esc = '^\n\x20\x41-\x5a\x61-\x7a';
 our ($mRNAdb, $db, $dbh, $db_host, $db_usr, $db_passwd);
 if ($species) {
@@ -229,6 +230,11 @@ sub build_fg_index {
 				# Most isoforms are named _T##
 				$accession =~ s/_T\d{2}$//;	
 			}
+		}
+		
+		if (length($accession < $min_length)) {
+			print "Gene $accession not found in database! Please make sure your gene IDs are correct.\n";
+			exit 1;
 		}
 		
 
