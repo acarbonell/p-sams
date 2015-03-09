@@ -1,0 +1,3 @@
+[submodule "TargetFinder"]
+	path = TargetFinder
+	url = https://github.com/carringtonlab/TargetFinder.git
