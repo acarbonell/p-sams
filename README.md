@@ -16,5 +16,11 @@ Plant Small RNA Maker Suite
 P-SAMS has the option to execute TargetFinder jobs on a batch system using the Terascale Open-source Resource and QUEue Manager (TORQUE; http://www.adaptivecomputing.com/products/open-source/torque/).
 
 ## Installation
-1. Clone the P-SAMS repository.
-2. 
+Clone the P-SAMS repository with the TargetFinder submodule.
+```
+git clone --recursive https://github.com/carringtonlab/p-sams.git
+```
+Install the prerequisite software and libraries. For MySQL you will need permission to create databases and alter user privileges, but P-SAMS itself only needs a user with SELECT privileges on P-SAMS databases.
+
+
+
