@@ -62,8 +62,74 @@ LOAD DATA INFILE '[species].annotation.txt' INTO TABLE annotation FIELDS TERMINA
 ```
 
 # psams.pl
-# amiRNA_oligoDesigner.pl
-# syntasiRNA_oligoDesigner.pl
-# phytozome2psams.pl
-# add_species.pl
+```
+usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-c CONSTRUCT] [-o] [-h]
 
+Plant Small RNA Maker Suite (P-SAMS).
+  Artificial microRNA and synthetic trans-acting siRNA designer tool.
+
+arguments:
+  -t FOLDBACK           Foldback type [eudicot, monocot]. Default = eudicot.
+  -f FASTA              FASTA-formatted sequence. Not used if -a is set.
+  -a ACCESSION          Gene accession(s). Comma-separated list. Not used if -f is set.
+  -s SPECIES            Species. Required if -a is set.
+  -c CONSTRUCT          Construct type (amiRNA, syntasiRNA). Default = amiRNA.
+  -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
+  -h                    Show this help message and exit.
+```
+
+# amiRNA_oligoDesigner.pl
+```
+usage: amiRNA_oligoDesigner.pl -s SEQUENCE -n NAME -t TYPE [-h]
+
+Plant Small RNA Maker Suite (P-SAMS).
+  Artificial microRNA oligo designer tool.
+
+arguments:
+  -s SEQUENCE           Artificial microRNA sequence. Must be 21-nucleotides long.
+  -n NAME               Artificial microRNA name.
+  -t TYPE               Foldback type. Options = eudicot or monocot.
+  -h                    Show this help message and exit.
+```
+
+# syntasiRNA_oligoDesigner.pl
+```
+usage: syntasiRNA_oligoDesigner.pl -s SEQUENCES -n NAMES [-h]
+
+Plant Small RNA Maker Suite (P-SAMS).
+  Synthetic trans-acting siRNA oligo designer tool.
+
+arguments:
+  -s SEQUENCES           Syn-tasiRNA sequences. A comma-separated list of one or more 21-nucleotides long sequences.
+  -n NAMES               A comma-separated list of names for the syn-tasiRNA sequences. Length must match the sequences list.
+  -h                     Show this help message and exit.
+```
+
+# phytozome2psams.pl
+```
+usage: phytozome2psams.pl -f FASTA -a ANNOTATION -s SPECIES -v VERSION [-h]
+
+Plant Small RNA Maker Suite (P-SAMS).
+  Parse Phytozome transcript FASTA and annotation files.
+
+arguments:
+  -f FASTA              FASTA-formatted transcript file (*.transcript.fa).
+  -a ANNOTATION         Gene annotation file (*.annotation_info.txt).
+  -s SPECIES            Species name. No spaces, will be used in output file names.
+  -v VERSION            Species annotation/assembly version. Will be used in output file names.
+  -h                    Show this help message and exit.
+```
+
+# add_species.pl
+```
+usage: add_species.pl -f FASTA -s SPECIES -k KSIZE [-h]
+
+Plant Small RNA Maker Suite (P-SAMS).
+  Adds a new species to the kmer database.
+
+arguments:
+  -f FASTA              FASTA-formatted transcript sequences.
+  -s SPECIES            Species code.
+  -k KSIZE              Kmer length.
+  -h                    Show this help message and exit.
+```
