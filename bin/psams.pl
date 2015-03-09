@@ -20,7 +20,7 @@ arg_check();
 
 # Constants
 our $conf_file = "$Bin/../psams.conf";
-our $targetfinder = "$Bin/targetfinder.pl";
+our $targetfinder = "$Bin/../TargetFinder/targetfinder.pl";
 our $tmpdir = "$Bin/../tmp";
 our $conf = Config::Tiny->read($conf_file);
 our $seed = 15;
