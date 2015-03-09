@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS `kmers`;
+CREATE TABLE `kmers` (
+  `kmer` CHAR(15) PRIMARY KEY,
+  `transcripts` TEXT NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+DROP TABLE IF EXISTS `annotation`;
+CREATE TABLE `annotation` (
+  `transcript` VARCHAR(20) PRIMARY KEY,
+  `description` TEXT
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
