@@ -14,8 +14,8 @@ use Data::Dumper;
 # Begin variables
 ################################################################################
 #my (%opt, @accessions, $fasta, $species, $fb, $ids, $bg, @t_sites, $construct);
-my (%opt, $accession_list, $fasta, $species, $fb, $construct);
-getopts('a:s:t:f:c:ho',\%opt);
+my (%opt, $accession_list, $fasta, $species, $fb, $construct, $unlimit);
+getopts('a:s:t:f:c:hou',\%opt);
 arg_check();
 
 # Constants
@@ -1140,7 +1140,7 @@ sub serial_jobs {
 			push @opt, $site;
 			$result_count++;
 		}
-		last if ($result_count == 3);
+		last if ($result_count == 3 && $unlimit == 0);
 	}
 
 	return (\@opt, \@subopt);
@@ -1285,7 +1285,7 @@ sub pbs_jobs {
 					$remaining--;
 				}
 			}
-			last if ($result_count == 3);
+			last if ($result_count == 3 && $unlimit == 0);
 			print STDERR "Waiting for jobs to finish... $remaining\r" if DEBUG;
 		}
 		print STDERR "Waiting for jobs to finish... done\n" if DEBUG;
@@ -1304,7 +1304,7 @@ sub pbs_jobs {
 		}
 		$job = $end + 1;
 		print STDERR "done\n" if DEBUG;
-		last if ($result_count == 3);
+		last if ($result_count == 3 && $unlimit == 0);
 	}
 
 	return (\@opt, \@subopt);
@@ -1364,7 +1364,11 @@ sub arg_check {
 	} else {
 		$construct = 'amiRNA';
 	}
-
+	if ($opt{'u'}) {
+		$unlimit = 1;
+	} else {
+		$unlimit = 0;
+	}
 }
 
 ########################################
@@ -1389,6 +1393,7 @@ arguments:
   -s SPECIES            Species. Required if -a is set.
   -c CONSTRUCT          Construct type (amiRNA, syntasiRNA). Default = amiRNA.
   -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
+	-u                    Unlimited results (slow).
   -h                    Show this help message and exit.
 
   ";
