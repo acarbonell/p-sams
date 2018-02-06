@@ -63,7 +63,7 @@ LOAD DATA INFILE '[species].annotation.txt' INTO TABLE annotation FIELDS TERMINA
 
 # psams.pl
 ```
-usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-c CONSTRUCT] [-o] [-h]
+usage: psams.pl [-f FASTA] [-a ACCESSIONS -s SPECIES] [-t FOLDBACK] [-c CONSTRUCT] [-o] [-u] [-h]
 
 Plant Small RNA Maker Suite (P-SAMS).
   Artificial microRNA and synthetic trans-acting siRNA designer tool.
@@ -75,6 +75,7 @@ arguments:
   -s SPECIES            Species. Required if -a is set.
   -c CONSTRUCT          Construct type (amiRNA, syntasiRNA). Default = amiRNA.
   -o                    Predict off-target transcripts? Filters guide sequences to minimize/eliminate off-targets.
+  -u                    Unlimited results (slow).
   -h                    Show this help message and exit.
 ```
 
