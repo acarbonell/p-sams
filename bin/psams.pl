@@ -230,6 +230,8 @@ sub build_fg_index {
 				# Most isoforms are named _T##
 				$accession =~ s/_T\d{2}$//;	
 			}
+		} elsif ($species eq 'C_REINHARDTII') {
+				$accession =~ s/\.t\d$//;
 		}
 		
 		if (length($accession) < $min_length) {
