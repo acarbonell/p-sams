@@ -15,4 +15,3 @@ plugins:
 nav:
   - Home: index.md
   - "FAQ": faq.md
-  - "About": about.md
