@@ -1,7 +1,6 @@
 # The Plant Small RNAMaker Site (P-SAMS)
 
-The P-SAMS web application is no longer maintained, but P-SAMS is still available as a standalone tool.
-The standalone version of P-SAMS is available on [GitHub](https://github.com/carringtonlab/p-sams).
+The P-SAMS web application is being updated and will be available soon. Meanwhile you can use the standalone version available on [GitHub](https://github.com/carringtonlab/p-sams).
 
 ## Contact
 For any questions, please [contact us](https://www.danforthcenter.org/our-work/principal-investigators/james-carrington/).
